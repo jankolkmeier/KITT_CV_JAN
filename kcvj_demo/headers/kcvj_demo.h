@@ -18,16 +18,18 @@ int port = 9988;
 const char * settingsFile = "default.yml";
 
 // Settings
-string _sourceType = "capture"; // capture | image
+string _sourceType = "capture_camera"; // capture_camera | capture_video | image | image_sequence
 string _sourceName = "0"; // int for capture device or filename for video
 string _calibrationFile = "camera.yml";
+double _markerSize = 25.0;
 int _frameStart = 0;
 int _frameStop = 0;
 string _prefix = "frame_";
 string _suffix = ".png";
 
 double _searchScale = 0.2;
-bool _flip = true;
+bool _flip = false;
+bool _debug = true;
 double _scale = 0.2;
 
 Mat input, output, reduced;
@@ -35,6 +37,7 @@ Mat input, output, reduced;
 // Setting Callbacks
 string paramSourceType(int action, string val);
 string paramSourceName(int action, string val);
+string paramMarkerSize(int action, string val);
 string paramSearchScale(int action, string val);
 string paramCalibrationFile(int action, string val);
 
@@ -42,6 +45,7 @@ string paramFrameStart(int action, string val);
 string paramFrameStop(int action, string val);
 string paramPrefix(int action, string val);
 string paramSuffix(int action, string val);
+string paramDebug(int action, string val);
 
 string paramScale(int action, string val);
 string paramFlip(int action, string val);

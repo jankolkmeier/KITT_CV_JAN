@@ -66,7 +66,7 @@ void * RemoteControl::listen(void * parent) {
         pbuf[recv_len] = '\0';
         string req(pbuf);
 
-        cout << "Handling '" << req << "' (" << req.length() << ")" << endl;
+        //cout << "Handling '" << req << "' (" << req.length() << ")" << endl;
         // TODO:
         //   - toggle debug console stuff
         //   - Make library (and use with cmake in other project)
@@ -90,15 +90,17 @@ void * RemoteControl::listen(void * parent) {
                 while (self->image_requested != 2) {
                     usleep(1);
                 }
-
                 pthread_mutex_lock(&(self->mutex));
                 Mat out;
                 Mat prefixMat(1, 1, self->sendFrame.type());
                 prefixMat.at<int>(0,0) = prefix;
                 hconcat(prefixMat, self->sendFrame, out);
+                int errno;
                 // data should be smaller than 254x254 (65535 bytes) according to UDP spec?
                 if (sendto(self->listenSock, out.data, self->imgSize+1, 0, (struct sockaddr*) &(self->si_other), self->slen) == -1) {
-                    self->die("image sendto()", 1);
+                    //if (sendto(self->listenSock, "2FOO", 4, 0, (struct sockaddr*) &(self->si_other), self->slen) == -1) {
+                    cout << "sendto() ERROR: " << errno << endl;
+                    //self->die("image sendto()", 1);
                 }
                 self->image_requested = 0;
                 pthread_mutex_unlock(&(self->mutex));

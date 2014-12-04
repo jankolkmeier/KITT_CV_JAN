@@ -1,14 +1,95 @@
-#define KCVJ_GUI 1
+#define KCVJ_GUI 0
 #define KCVJ_REMOTE 1
 
 #include "kcvj_demo.h"
 
 int run() {
+    VideoCapture * cap;
     
-#if (KCVJ_GUI == 1)
-#endif
+    int frame = _frameStart;
+    vector<CircleMarker> markers;
+    markers.push_back(CircleMarker(0, _markerSize));
     
-    if (!ctrl->imageSet) ctrl->setDebugImage(reduced);
+    Camera camera(_calibrationFile);
+    if (camera.cameraMatrix.empty()) return -1;
+    
+    Mat input;
+    bool autoproceed = true;
+    
+    if (_sourceType == "capture_video" || _sourceType == "capture_camera") {
+        if (_sourceType == "capture_video" ) {
+            cap = new VideoCapture(_sourceName);
+        } else {
+            cap = new VideoCapture(atoi(_sourceName.c_str()));
+        }
+        
+        if (!cap->isOpened()) {
+            cout << "Failed to open capture: " << _sourceName << endl;
+            return -1;
+        }
+    }
+    
+    
+    while (true) {
+        if (frame > _frameStop) frame = _frameStart;
+        
+        if (_sourceType == "image_sequence") {
+            stringstream ss;
+            ss << _prefix << frame << _suffix;
+            input = imread(ss.str(), CV_LOAD_IMAGE_COLOR);
+        } else if (_sourceType == "image") {
+            input = imread(_sourceName, CV_LOAD_IMAGE_COLOR);
+        } else if (_sourceType == "capture_video" || _sourceType == "capture_camera") {
+            cap->read(input);
+        }
+        
+        if (input.empty()) {
+            cout << "Image empty" << endl;
+            return -1;
+        }
+        
+        CircleMarker::findAndEstimate(input, output, _debug, camera, markers, _searchScale);
+        for (int m = 0; m < markers.size(); m++) {
+            if (markers.at(m).detected) {
+                cout << markers.at(m).serialize() << endl;
+                markers.at(m).detected = false;
+            }
+        }
+        
+        if (_debug) {
+            if (!ctrl->imageSet) {
+                reduceImage(output, reduced, _scale);
+                ctrl->setDebugImage(reduced);
+                cout << "Set image " << ctrl->imageSet << endl;
+            } else if (ctrl->image_requested == 1) {
+                reduceImage(output, reduced, _scale);
+                pthread_mutex_lock(&(ctrl->mutex));
+                ctrl->image_requested = 2;
+                pthread_mutex_unlock(&(ctrl->mutex));
+            }
+        }
+        
+        #if (KCVJ_GUI == 1)
+        imshow("Output", output);
+        do {
+            char k = waitKey(10);
+            if (k == ' ') autoproceed = !autoproceed;
+            if (k == 'q') return 0;
+            if (k == 'b') {
+                frame--;
+                autoproceed = false;
+                break;
+            }
+            if (k == 'n') {
+                frame++;
+                autoproceed = false;
+                break;
+            }
+        } while (!autoproceed);
+        #endif
+        if (autoproceed && _sourceType == "image_sequence") frame++;
+    }
+    
     return 0;
 }
 
@@ -31,19 +112,26 @@ int main(int argc, char* argv[]) {
     ctrl->settings->add("sourceType", &paramSourceType, true);
     ctrl->settings->add("sourceName", &paramSourceName, true);
     ctrl->settings->add("searchScale", &paramSearchScale, true);
+    ctrl->settings->add("markerSize", &paramMarkerSize, true);
     ctrl->settings->add("calibrationFile", &paramCalibrationFile, true);
     
     ctrl->settings->add("frameStart", &paramFrameStart, true);
     ctrl->settings->add("frameStop", &paramFrameStop, true);
     ctrl->settings->add("prefix", &paramPrefix, true);
     ctrl->settings->add("suffix", &paramSuffix, true);
+    ctrl->settings->add("debug", &paramDebug, true);
     
-    ctrl->settings->add("flip", &paramFlip, false);
+    ctrl->settings->add("flip", &paramFlip, true);
     ctrl->settings->add("scale", &paramScale, true);
     
-    ctrl->settings->load(settingsFile);
+    if (!ctrl->settings->load(settingsFile)) {
+        cout << "Couldn't find calibration file, writing defaults to " << settingsFile << endl;
+        ctrl->settings->save(settingsFile);
+    }
     
-    return run();
+    bool result = run();
+    ctrl->settings->save(settingsFile);
+    return result;
 }
 
 
@@ -64,10 +152,10 @@ string paramFrameStart(int action, string val) {
 
 string paramFrameStop(int action, string val) {
     if (action == PARAM_SET) {
-        _frameStart = atoi(val.c_str());
+        _frameStop = atoi(val.c_str());
     } else {
         ostringstream buf;
-        buf << _frameStart;
+        buf << _frameStop;
         return buf.str();
     }
     return "";
@@ -111,11 +199,31 @@ string paramSourceName(int action, string val) {
 
 string paramSearchScale(int action, string val) {
     if (action == PARAM_SET) {
-        _searchScale = min(max(0.05, atof(val.c_str())), 1.0);
+        _searchScale = (double) min(max(0.05, atof(val.c_str())), 1.0);
     } else {
         ostringstream buf;
         buf << _searchScale;
         return buf.str();
+    }
+    return "";
+}
+
+string paramMarkerSize(int action, string val) {
+    if (action == PARAM_SET) {
+        _markerSize = (double) min(max(0.01, atof(val.c_str())), 500.0);
+    } else {
+        ostringstream buf;
+        buf << _markerSize;
+        return buf.str();
+    }
+    return "";
+}
+
+string paramDebug(int action, string val) {
+    if (action == PARAM_SET) {
+        _debug = atoi(val.c_str()) == 1;
+    } else {
+        return _debug ? "1" : "0";
     }
     return "";
 }
@@ -131,7 +239,7 @@ string paramFlip(int action, string val) {
 
 string paramScale(int action, string val) {
     if (action == PARAM_SET) {
-        _scale = min(max(0.05, atof(val.c_str())), 1.0);
+        _scale = (double) min(max(0.05, atof(val.c_str())), 1.0);
         reduceImage(output, reduced, _scale);
         ctrl->setDebugImage(reduced);
     } else {
@@ -158,80 +266,5 @@ void reduceImage(Mat &src, Mat &dst, float scale) {
     if (_flip)
         flip(tmp, tmp, 1);
     resize(tmp, dst, Size(), scale, scale, INTER_NEAREST);
+    //imshow("REDUCED", dst);
 }
-
-/*
-
-int live(int cam, string calibration) {
-    VideoCapture cap(cam);
-    if(!cap.isOpened()) {
-        cout << "Failed to open capture device." << endl;
-        return -1;
-    }
-    
-    vector<CircleMarker> markers;
-    markers.push_back(CircleMarker(0, 25.0));
-    Camera camera(calibration);
-    
-    Mat input;
-    while (true) {
-        cap >> input;
-        // todo: only if new frame?
-        CircleMarker::findAndEstimate(input, camera, markers, 0.35);
-        for (int m = 0; m < markers.size(); m++) {
-            if (markers.at(m).detected)
-                cout << markers.at(m).serialize() << endl;
-        }
-        //
-        imshow("INPUT", input);
-        if (waitKey(30) == 'q') break;
-    }
-    
-    return 0;
-}
-
-int files(string prefix, int first, int last, string calibration) {
-    int frame = first;
-    vector<CircleMarker> markers;
-    markers.push_back(CircleMarker(0, 25.0));
-    Camera camera(calibration);
-    
-    bool autoproceed = true;
-    Mat input;
-    
-    while (true) {
-        if (frame>last) frame = first;
-        
-        stringstream ss;
-        ss << prefix << frame << ".png";
-        input = imread(ss.str(), CV_LOAD_IMAGE_COLOR);
-        
-        CircleMarker::findAndEstimate(input, camera, markers, 0.35);
-        for (int m = 0; m < markers.size(); m++) {
-            if (markers.at(m).detected) {
-                cout << markers.at(m).serialize() << endl;
-                markers.at(m).detected = false;
-            }
-        }
-        
-        do {
-            char k = waitKey(10);
-            if (k == ' ') autoproceed = !autoproceed;
-            if (k == 'q') return 0;
-            if (k == 'b') {
-                frame--;
-                autoproceed = false;
-                break;
-            }
-            if (k == 'n') {
-                frame++;
-                autoproceed = false;
-                break;
-            }
-        } while (!autoproceed);
-        if (autoproceed) frame++;
-    }
-    
-    return 0;
-}
-*/

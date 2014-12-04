@@ -62,7 +62,7 @@ void CircleMarker::findAndEstimate(Mat &img, Mat &output, bool debug, Camera &ca
         bwc.copyTo(output(Rect(0, 0, bwc.cols, bwc.rows)));
     }
     
-    cout << "Circles: " << circles.size() << endl;
+    //cout << "Circles: " << circles.size() << endl;
     
     for (int i = 0; i < circles.size(); i++) {
         Point center(circles[i].x, circles[i].y);
@@ -80,7 +80,7 @@ void CircleMarker::findAndEstimate(Mat &img, Mat &output, bool debug, Camera &ca
         findContours(roi, contours, hierarchy,
                      CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE, Point(x1, y1));
         
-        cout << "Contours: " << contours.size() << endl;
+        //cout << "Contours: " << contours.size() << endl;
         // If there are shapes inside, and if it is not too noisy...
         if (contours.size() > 0 && contours.size() < 4) {
             
@@ -98,7 +98,7 @@ void CircleMarker::findAndEstimate(Mat &img, Mat &output, bool debug, Camera &ca
                 approx.clear();
                 approxPolyDP(contours[ci], approx, 8, true);
                 
-                cout << "Approx: " << approx.size() << endl;
+                //cout << "Approx: " << approx.size() << endl;
                 
                 if (approx.size() == 4) {
                     vector<Point2f> refined;
@@ -286,6 +286,7 @@ bool CircleMarker::_searchNestedCircles(Mat & row, int r, vector<Point3i> & bars
         bool next_white = horizontal ? (uchar)row.at<uchar>(0, i) == 0 : (uchar)row.at<uchar>(i, 0) == 0;
 
         if (next_white == white) curr++;
+        
         white = next_white;
         black = !white;
 

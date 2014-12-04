@@ -24,6 +24,7 @@ bool Settings::save(string name) {
 
 bool Settings::load(string name) {
     FileStorage fsl(name, FileStorage::READ);
+    if (!fsl.isOpened()) return false;
     for (paramMap::iterator it = params.begin(); it != params.end(); it++) {
         if (!it->second.doLoadSave) continue;
         (*((paramCallback)(it->second.callback)))(PARAM_SET, (string)fsl[it->first]);

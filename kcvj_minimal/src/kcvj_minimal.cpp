@@ -34,7 +34,7 @@ int main(int argc, char* argv[]) {
     
     while (true) {
         cap >> input;
-        CircleMarker::findAndEstimate(input, output, gui > 0, camera, markers, 0.5);
+        CircleMarker::findAndEstimate(input, output, gui > 0, camera, markers, 0.3);
         for (int m = 0; m < markers.size(); m++) {
             if (markers.at(m).detected) {
                 cout << markers.at(m).serialize() << endl;
