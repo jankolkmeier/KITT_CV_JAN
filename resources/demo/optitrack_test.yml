@@ -1,0 +1,13 @@
+%YAML:1.0
+calibrationFile: "calibration/macbook.yml"
+debug: "1"
+flip: "0"
+frameStart: "0"
+frameStop: "100"
+markerSize: "25"
+prefix: "tests/optitrack/test_"
+scale: "0.08"
+searchScale: "0.3"
+sourceName: "0"
+sourceType: image_sequence
+suffix: ".jpeg"
