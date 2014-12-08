@@ -36,6 +36,7 @@ int run() {
         if (_sourceType == "image_sequence") {
             stringstream ss;
             ss << _prefix << frame << _suffix;
+            cout << "Frame " << frame << endl;
             input = imread(ss.str(), CV_LOAD_IMAGE_COLOR);
         } else if (_sourceType == "image") {
             input = imread(_sourceName, CV_LOAD_IMAGE_COLOR);
@@ -60,7 +61,6 @@ int run() {
             if (!ctrl->imageSet) {
                 reduceImage(output, reduced, _scale);
                 ctrl->setDebugImage(reduced);
-                cout << "Set image " << ctrl->imageSet << endl;
             } else if (ctrl->image_requested == 1) {
                 reduceImage(output, reduced, _scale);
                 pthread_mutex_lock(&(ctrl->mutex));

@@ -3,6 +3,8 @@
 CircleMarker::CircleMarker(int markerId, double size) {
     this->markerId = 0;
     this->size = size;
+    this->rvec = Mat(3,1,DataType<double>::type);
+    this->tvec = Mat(3,1,DataType<double>::type);
     this->T = Mat(4, 4, DataType<double>::type);
     this->R = Mat(3, 3, DataType<double>::type);
     //this->rout = Mat(3, 1, DataType<double>::type);
@@ -17,7 +19,9 @@ CircleMarker::CircleMarker(int markerId, double size) {
     this->detected = false;
 }
 
-void CircleMarker::setMarkerTransform(Mat rvec, Mat tvec) {
+void CircleMarker::reestimateMarker(vector<Point2d> & scene, Camera & camera) {
+    solvePnP(model, scene, camera.cameraMatrix, camera.distCoeffs, rvec, tvec, false, CV_ITERATIVE);// CV_P3P, CV_EPNP, CV_ITERATIVE
+    detected = true;
     Rodrigues(rvec, R);
     R = R.t();  // rotation of inverse
     t = -R * tvec; // translation of inverse
@@ -61,123 +65,133 @@ void CircleMarker::findAndEstimate(Mat &img, Mat &output, bool debug, Camera &ca
         cvtColor(bw, bwc, CV_GRAY2RGB);
         bwc.copyTo(output(Rect(0, 0, bwc.cols, bwc.rows)));
     }
-    
-    //cout << "Circles: " << circles.size() << endl;
-    
+
     for (int i = 0; i < circles.size(); i++) {
         Point center(circles[i].x, circles[i].y);
-        int range = circles[i].z*2.25;
+        int range = circles[i].z*2.0;
         int x1 = max(0, circles[i].x-range);
         int y1 = max(0, circles[i].y-range);
         int x2 = min(bw.size().width, circles[i].x+range);
         int y2 = min(bw.size().height, circles[i].y+range);
         Mat roi = bw(Range(y1, y2), Range(x1, x2));
-        //roi = Mat::ones(roi.size(), roi.type()) * 255 - roi;
         
-        // Inside the roi, we walk the extreme outer contour
-        vector< vector<Point> > contours;
-        vector<Vec4i> hierarchy;
-        findContours(roi, contours, hierarchy,
-                     CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE, Point(x1, y1));
-        
-        //cout << "Contours: " << contours.size() << endl;
-        // If there are shapes inside, and if it is not too noisy...
-        if (contours.size() > 0 && contours.size() < 4) {
+        if (debug) {
+            rectangle(img, Point(x1,y1),  Point(x2,y2),  Scalar(180,30,220), 1, 1);
+            circle(img, center, circles[i].z, CV_RGB(0,255,255), 1);
+        }
+                
+        // Try approximate corners in outline
+        vector<Point2i> approx;
+        if (approximateCornersSlow(roi, Point(x1, y1), approx)) {
+            vector<Point2f> refined = refineCorners(gray, scaleFactor, approx);
+            vector<Point2d> scene; // Marker corners in scene, order corresponding with model.
             
-            vector<Point2i> approx;
-            for (int ci=0; ci < contours.size(); ci++) {
-                if (debug) {
-                    // Draw Candidate
-                    rectangle(img, Point(x1,y1),  Point(x2,y2),  Scalar(180,30,220), 1, 1);
-                    circle(img, center, circles[i].z, CV_RGB(0,255,255), 1);
-                    drawContours(img, contours, ci, Scalar(255,255,255));
-                }
-                
-                
-                // Try to approximate
-                approx.clear();
-                approxPolyDP(contours[ci], approx, 8, true);
-                
-                //cout << "Approx: " << approx.size() << endl;
-                
-                if (approx.size() == 4) {
-                    vector<Point2f> refined;
-                    Mat(approx).copyTo(refined);
-                    
-                    for (int c = 0; c < refined.size(); c++) {
-                        refined[c].x = refined[c].x/scaleFactor;
-                        refined[c].y = refined[c].y/scaleFactor;
-                    }
-                    
-                    TermCriteria criteria = TermCriteria( CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 50, 0.001 );
-                    cornerSubPix(gray, refined, Size(6,6), Size(-1,-1), criteria);
-                    
-                    vector<Point2d> scene;
-                    if (!sortCorners(bw, scaleFactor, refined, scene)) continue;
-                    CircleMarker * marker = NULL;
-                    
-                    int markerId = detectMarkerId(bw, scaleFactor, scene);
+            // Can we associate the corners with the model?
+            if (sortCorners(bw, scaleFactor, refined, scene)) {
+                // Can we detect the marker id?
+                int markerId = detectMarkerId(bw, scaleFactor, scene);
+                if (markerId > -1) {
                     for (int midx = 0; midx < markers.size(); midx++) {
-                        if (markers.at(midx).markerId == markerId) marker = &markers.at(midx);
-                    }
-                    if (marker == NULL) continue; // Marker not used
-                    
-                    Mat rvec = Mat(3,1,DataType<double>::type);
-                    Mat tvec = Mat(3,1,DataType<double>::type);
-                    solvePnP(marker->model, scene, camera.cameraMatrix, camera.distCoeffs, rvec, tvec, false, CV_ITERATIVE);// CV_P3P, CV_EPNP, CV_ITERATIVE
-                    marker->setMarkerTransform(rvec, tvec);
-                    marker->detected = true;
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    if (debug) {
-                        // Draw reprojected marker & COS
-                        vector<Point3f> cosx; vector<Point2f> cosx_img;
-                        vector<Point3f> cosy; vector<Point2f> cosy_img;
-                        vector<Point3f> cosz; vector<Point2f> cosz_img;
-                        vector<Scalar> cornerColors;
-                        cornerColors.push_back(Scalar(255,0,0));
-                        cornerColors.push_back(Scalar(0,255,0));
-                        cornerColors.push_back(Scalar(0,0,255));
-                        cornerColors.push_back(Scalar(255,0,255));
-                        cosx.push_back(Point3f(0,0,0));
-                        cosx.push_back(Point3f(marker->size/2,0,0));
-                        cosy.push_back(Point3f(0,0,0));
-                        cosy.push_back(Point3f(0,marker->size/2,0));
-                        cosz.push_back(Point3f(0,0,0));
-                        cosz.push_back(Point3f(0,0,marker->size/2));
-                        std::vector<Point2d> scene_corners(4);
-                        projectPoints(marker->model, rvec, tvec, camera.cameraMatrix, camera.distCoeffs, scene_corners);
-                        projectPoints(cosx, rvec, tvec, camera.cameraMatrix, camera.distCoeffs, cosx_img);
-                        projectPoints(cosy, rvec, tvec, camera.cameraMatrix, camera.distCoeffs, cosy_img);
-                        projectPoints(cosz, rvec, tvec, camera.cameraMatrix, camera.distCoeffs, cosz_img);
-                        
-                        for (int c = 0; c<4; c++) {
-                            // Approximated corners
-                            circle(output, approx[c], 5, cornerColors[c]);
-                            circle(output, scene_corners[c], 5, cornerColors[c]);
-                            
-                            // Reproject corners with found translation; connect with lines
-                            line(output, scene_corners[c], scene_corners[(c+1)%4], Scalar(255, 0, 255), 1);
+                        // Do we have that marker in our
+                        if (markers.at(midx).markerId == markerId) {
+                            CircleMarker * marker = &markers.at(midx);
+                            marker->reestimateMarker(scene, camera);
+                            if (debug) drawMaker(*marker, camera, output);
                         }
-                        
-                        // Marker COS
-                        line(output, cosx_img[0], cosx_img[1], Scalar(255,0,0), 2);
-                        line(output, cosy_img[0], cosy_img[1], Scalar(0,255,0), 2);
-                        line(output, cosz_img[0], cosz_img[1], Scalar(0,0,255), 2);
                     }
-                
-                    
                 }
             }
         }
     }
 }
 
+// Slow implementation using built-in opencv functions
+bool CircleMarker::approximateCornersSlow(Mat & roi, Point offset, vector<Point2i> & approx) {
+    // Inside the roi, we walk the extreme outer contour
+    vector< vector<Point> > contours;
+    vector<Vec4i> hierarchy;
+    findContours(roi, contours, hierarchy,
+                 CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE, offset);
+    
+    // If there are shapes inside, and if it is not too "noisy"...
+    if (contours.size() > 0 && contours.size() < 4) {
+        for (int ci=0; ci < contours.size(); ci++) {
+            approxPolyDP(contours[ci], approx, 10, true); // small epsilon = detailed approx.size()
+            if (approx.size() == 4) return true; // this must be our square
+        }
+    }
+    
+    return false;
+}
+
+// Not implemented yet, using findContours +
+bool CircleMarker::approximateCornersFast(Mat & roi, Point offset, vector<Point2i> & approx) {
+    Point2i ptl(roi.cols/2, roi.rows/2);
+    Point2i ptr(roi.cols/2, roi.rows/2);
+    Point2i pbr(roi.cols/2, roi.rows/2);
+    Point2i pbl(roi.cols/2, roi.rows/2);
+    
+    approx.clear();
+    approx.push_back(ptl);
+    approx.push_back(ptr);
+    approx.push_back(pbr);
+    approx.push_back(pbl);
+    
+    return false;
+}
+
+// Approx = 4 corners, to be refined in gray img, which is bigger by scaleFactor
+vector<Point2f> CircleMarker::refineCorners(Mat & gray, float scaleFactor, vector<Point2i> & approx) {
+    vector<Point2f> refined;
+    Mat(approx).copyTo(refined);
+    
+    for (int c = 0; c < refined.size(); c++) {
+        refined[c].x = refined[c].x/scaleFactor;
+        refined[c].y = refined[c].y/scaleFactor;
+    }
+    
+    TermCriteria criteria = TermCriteria( CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 50, 0.001 );
+    cornerSubPix(gray, refined, Size(6,6), Size(-1,-1), criteria);
+    
+    return refined;
+}
+
+void CircleMarker::drawMaker(CircleMarker & marker, Camera & camera, Mat & output) {
+    // Draw reprojected marker & COS
+    vector<Point3f> cosx; vector<Point2f> cosx_img;
+    vector<Point3f> cosy; vector<Point2f> cosy_img;
+    vector<Point3f> cosz; vector<Point2f> cosz_img;
+    vector<Scalar> cornerColors;
+    cornerColors.push_back(Scalar(255,0,0));
+    cornerColors.push_back(Scalar(0,255,0));
+    cornerColors.push_back(Scalar(0,0,255));
+    cornerColors.push_back(Scalar(255,0,255));
+    cosx.push_back(Point3f(0,0,0));
+    cosx.push_back(Point3f(marker.size/2,0,0));
+    cosy.push_back(Point3f(0,0,0));
+    cosy.push_back(Point3f(0,marker.size/2,0));
+    cosz.push_back(Point3f(0,0,0));
+    cosz.push_back(Point3f(0,0,marker.size/2));
+    std::vector<Point2d> scene_corners(4);
+    projectPoints(marker.model, marker.rvec, marker.tvec, camera.cameraMatrix, camera.distCoeffs, scene_corners);
+    projectPoints(cosx, marker.rvec, marker.tvec, camera.cameraMatrix, camera.distCoeffs, cosx_img);
+    projectPoints(cosy, marker.rvec, marker.tvec, camera.cameraMatrix, camera.distCoeffs, cosy_img);
+    projectPoints(cosz, marker.rvec, marker.tvec, camera.cameraMatrix, camera.distCoeffs, cosz_img);
+    
+    for (int c = 0; c<4; c++) {
+        // Approximated corners
+        //circle(output, approx[c], 5, cornerColors[c]);
+        circle(output, scene_corners[c], 5, cornerColors[c]);
+        
+        // Reproject corners with found translation; connect with lines
+        line(output, scene_corners[c], scene_corners[(c+1)%4], Scalar(255, 0, 255), 1);
+    }
+    
+    // Marker COS
+    line(output, cosx_img[0], cosx_img[1], Scalar(255,0,0), 2);
+    line(output, cosy_img[0], cosy_img[1], Scalar(0,255,0), 2);
+    line(output, cosz_img[0], cosz_img[1], Scalar(0,0,255), 2);
+}
 
 bool CircleMarker::sortCorners(Mat & img, double scale, vector<Point2f>& corners, vector<Point2d>& scene) {
     // We want to know the right order of corners to match our marker model.
@@ -216,37 +230,80 @@ bool CircleMarker::sortCorners(Mat & img, double scale, vector<Point2f>& corners
     return true;
 }
 
+SuspectedCircleMarker::SuspectedCircleMarker(int x, int y, int s, bool h) {
+    cx = x;
+    cy = y;
+    size = s;
+    detected_as_horizontal = h;
+    score_horizontal = 0;
+    score_vertical = 0;
+}
+
+bool SuspectedCircleMarker::isClose(SuspectedCircleMarker & scm) {
+    int tsize = (size + scm.size);
+    float ratio = (float) max(size, scm.size)/(float)tsize;
+    return ratio < 0.72f && abs(cx - scm.cx) < tsize/5 && abs(cy - scm.cy) < tsize/5;
+}
+
+bool SuspectedCircleMarker::tooClose(SuspectedCircleMarker & scm) {
+    int msize = (size + scm.size);
+    return abs(cx - scm.cx) < msize && abs(cy - scm.cy) < msize;
+}
+
+void SuspectedCircleMarker::merge(SuspectedCircleMarker & scm) {
+    cx = (cx + scm.cx)/2;
+    cy = (cy + scm.cy)/2;
+    size = max(size, scm.size);
+    if (scm.detected_as_horizontal) score_horizontal++;
+    else score_vertical++;
+}
+
+Point3i SuspectedCircleMarker::export_point() {
+    return Point3i((int) cx, (int) cy, (int) size);
+}
+
 int CircleMarker::detectMarkerId(Mat & img, double scale, vector<Point2d>& scene) {
     return 0;
 }
 
 void CircleMarker::searchNestedCircles(Mat & img, vector<Point3i> & circles) {
-    Size size = img.size();
-    vector<Point3i> horiz_bars;
     
-    // Look for (grouped) bars in rows
+    Mat dbg_search;
+    cvtColor(img, dbg_search, CV_GRAY2BGR);
+
+    Size size = img.size();
+    vector<SuspectedCircleMarker> sus_markers;
+    
+    // Find possible circle markers by looking through rows (horizontal)
     for (int r = 0; r < size.height; r++) {
         Mat rMat = img.row(r);
-        CircleMarker::_searchNestedCircles(rMat, r, horiz_bars, true);
+        _searchNestedCircles(rMat, 0, r, sus_markers, true);
     }
     
-    // For each horizontal bar(group), check if vertical bar(group) exists
-    for (int b = 0; b < horiz_bars.size(); b++) {
-        Point3i bar = horiz_bars[b];
-        vector<Point3i> vert_bars;
-        vert_bars.push_back(bar);
-        bool found = false;
-        
-        int range = bar.z*2;
-        // we only search in area around bar
-        for (int c = max(0, bar.x-range); c < min(size.width, bar.x+range); c++) {
-            Mat rMat = img.col(c).rowRange(max(0, bar.y-range), min(size.height, bar.y+range));
-            if (_searchNestedCircles(rMat, c, vert_bars, false)) {
-                found = true;
-            }
+    // Remove those that don't have at least two good horizontal samples
+    for (vector<SuspectedCircleMarker>::iterator bar=sus_markers.begin(); bar!=sus_markers.end();){
+        if(bar->score_horizontal < 2) bar = sus_markers.erase(bar);
+        else ++bar;
+    }
+    
+    // Search through columns (vertical) only in vincinity of the leftover suspected markers
+    for (int b = 0; b < sus_markers.size(); b++) {
+        SuspectedCircleMarker * bar = &sus_markers[b];
+        circle(dbg_search, Point2i((int)bar->cx, (int)bar->cy), (int)bar->size, Scalar(0,0,255));
+        int range = (int)bar->size*2;
+        int x_offset = max(0, (int)bar->cx-range);
+        int y_offset = max(0, (int)bar->cy-range);
+        Mat roi_sus = img(Range(y_offset, min(size.height, (int)bar->cy+range)), Range(x_offset, min(size.width, (int)bar->cx+range)));
+        for (int c = 0; c < roi_sus.cols; c++) {
+            Mat rMat = roi_sus.col(c);
+            _searchNestedCircles(rMat, c+x_offset, y_offset, sus_markers, false);
         }
-        if (found) {
-            circles.push_back(vert_bars.at(0));
+    }
+    
+    // Return only those with at least two vertical and two horizontal samples
+    for (int b = 0; b < sus_markers.size(); b++) {
+        if (sus_markers[b].score_horizontal > 1 && sus_markers[b].score_vertical > 1) {
+            circles.push_back(sus_markers[b].export_point());
         }
     }
 }
@@ -265,12 +322,10 @@ void CircleMarker::searchNestedCircles(Mat & img, vector<Point3i> & circles) {
 //    Flop_N: 1
 //    NoFlop: 2
 //
-bool CircleMarker::_searchNestedCircles(Mat & row, int r, vector<Point3i> & bars, bool horizontal) {
+bool CircleMarker::_searchNestedCircles(Mat & row, int offset_x, int offset_y, vector<SuspectedCircleMarker> & bars, bool horizontal) {
     bool res = false;
     float max_ratio = 0.72f;
     uchar marker_flips = 8;
-
-    int end = horizontal ? row.size().width : row.size().height;
 
     uchar flips = 0;
     uchar state = 1;
@@ -281,7 +336,8 @@ bool CircleMarker::_searchNestedCircles(Mat & row, int r, vector<Point3i> & bars
 
     bool black = (uchar)row.at<uchar>(0, 0) == 255;
     bool white = !black;
-
+    
+    int end = horizontal ? row.size().width : row.size().height;
     for (int i = 0; i < end; i++) {
         bool next_white = horizontal ? (uchar)row.at<uchar>(0, i) == 0 : (uchar)row.at<uchar>(i, 0) == 0;
 
@@ -340,20 +396,34 @@ bool CircleMarker::_searchNestedCircles(Mat & row, int r, vector<Point3i> & bars
                         res = true;
                         int size = (definite_end - possible_start)/2;
                         int center = possible_start+size;
-                        Point3i current(horizontal ? center : r, horizontal ? r : center, size);
+                        SuspectedCircleMarker current(
+                                horizontal ? center+offset_x : offset_x,
+                                horizontal ? offset_y : center+offset_y,
+                                size, horizontal);
+                        
                         bool found = false;
+                        int filter = -1;
                         // cout << "|C: " << current.x << "," << current.y << "|" << endl;
                         for (int b = 0; b < bars.size(); b++) {
-                            Point3i * other = &bars[b];
-                            if (abs(current.x - other->x) < current.z && abs(current.y - other->y) < other->z) {
-                                other->x = (current.x + other->x)/2;
-                                other->y = (current.y + other->y)/2;
-                                other->z = max(current.z, other->z);
+                            SuspectedCircleMarker * other = &bars[b];
+                            if (other->isClose(current)) {
+                                other->merge(current);
                                 found = true;
+                                break;
+                            } else if (other->tooClose(current)) {
+                                filter = b;
                                 break;
                             }
                         }
-                        if (!found) bars.push_back(current);
+                        if (horizontal) {
+                            if (!found) {
+                                bars.push_back(current);
+                            }
+                            
+                            if (filter > -1) {
+                                bars.erase(bars.begin()+filter);
+                            }
+                        }
                     } else {
                         state = 3;
                         // cout << "3B";
