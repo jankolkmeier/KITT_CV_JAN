@@ -25,7 +25,7 @@ void OutputLine(ofstream & o) {
 
 
 int run() {
-    of.open(_outFile);
+    of.open(_outFile.c_str());
     OutputHeader(of);
     
     VideoCapture * cap;
