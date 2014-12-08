@@ -1,4 +1,4 @@
-#define KCVJ_GUI 1
+#define KCVJ_GUI 0
 #define KCVJ_REMOTE 1
 #define KCVJ_PROFILING 1
 
@@ -81,8 +81,8 @@ int run() {
         o_detected = (markers.at(0).detected ? 1 : 0);
         o_frame = frame;
         o_x = markers.at(0).t.at<double>(0);
-        o_y = markers.at(0).t.at<double>(0);
-        o_z = markers.at(0).t.at<double>(0);
+        o_y = markers.at(0).t.at<double>(1);
+        o_z = markers.at(0).t.at<double>(2);
         
         OutputLine(of);
         

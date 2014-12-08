@@ -1,9 +1,10 @@
 close all;
-raw_test = csvread('optitrack_test.csv');
+raw_test = csvread('output_mb.csv',1);
 raw_truth = csvread('optitrack_truth.csv');
-raw_truth_match = raw_truth(raw_test(:,1)+1,:);
+raw_test_match = raw_test(raw_test(raw_test(:,2)==1)+1,:);
+raw_truth_match = raw_truth(raw_test(raw_test(:,2)==1)+1,:);
 
-err = sqrt(sum(abs(raw_test(:,2:4) - raw_truth_match(:,2:4)).^2,2));
+err = sqrt(sum(abs(raw_test_match(:,3:5) - raw_truth_match(:,2:4)).^2,2));
 data = [ raw_truth_match(:,2), raw_truth_match(:,4), min(err, 60)];
 
 x=linspace(min(data(:,1)),max(data(:,1)), 200);
@@ -30,10 +31,10 @@ ylim([80, 350]);
 hold on;
 
 plot(raw_truth(:,2), raw_truth(:,4),'-d','Color',[0.05,0.35,0.25]);
-plot(raw_test(:,2), raw_test(:,4),'k*');
+plot(raw_test_match(:,3), raw_test_match(:,5),'k*');
 
 for m=1:length(raw_truth_match),
-    plot([raw_truth_match(m,2); raw_test(m,2)], [raw_truth_match(m,4); raw_test(m,4)]);
+    plot([raw_truth_match(m,2); raw_test_match(m,3)], [raw_truth_match(m,4); raw_test_match(m,5)]);
 end
 
 figure(3);
