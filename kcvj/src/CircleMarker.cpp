@@ -47,17 +47,44 @@ string CircleMarker::serialize() {
     return buf.str();
 }
 
+int t_total = 0;
+int t_prepare = 0;
+int t_search = 0;
+int t_approx = 0;
+int t_refine = 0;
+int t_estimate = 0;
+
+void WriteCircleMarkerProfileHeader(ofstream & o) {
+    o << "t_total,t_prepare,t_search,t_approx,t_refine,t_estimate";
+}
+
+void WriteCircleMarkerProfileLine(ofstream & o) {
+    o << t_total << "," << t_prepare << "," << t_search << "," << t_approx << "," << t_refine << "," << t_estimate;
+}
+
 
 void CircleMarker::findAndEstimate(Mat &img, Mat &output, bool debug, Camera &camera, vector<CircleMarker> &markers, double scaleFactor) {
-    Mat gray, bw;
+    t_prepare = 0;
+    t_search = 0;
+    t_approx = 0;
+    t_refine = 0;
+    t_estimate = 0;
+    t_total = 0;
     
+    int64 t0_t = GetTimeMs64();
+    int64 t0 = GetTimeMs64();
+    
+    Mat gray, bw;
     cvtColor(img, gray, CV_BGR2GRAY);
     resize(gray, bw, Size(), scaleFactor, scaleFactor);
     threshold(bw, bw, 75, 255, THRESH_BINARY_INV);
+    t_prepare += (int)(GetTimeMs64() - t0);
     
+    t0 = GetTimeMs64();
     vector<Point3i> circles;
     searchNestedCircles(bw, circles);
-    
+    t_search += (int)(GetTimeMs64() - t0);
+
     output = img;
     
     if (debug) {
@@ -79,15 +106,19 @@ void CircleMarker::findAndEstimate(Mat &img, Mat &output, bool debug, Camera &ca
             rectangle(img, Point(x1,y1),  Point(x2,y2),  Scalar(180,30,220), 1, 1);
             circle(img, center, circles[i].z, CV_RGB(0,255,255), 1);
         }
-                
+        
+        t0 = GetTimeMs64();
         // Try approximate corners in outline
         vector<Point2i> approx;
         if (approximateCornersSlow(roi, Point(x1, y1), approx)) {
+            t_approx += (int)(GetTimeMs64() - t0);
+            t0 = GetTimeMs64();
             vector<Point2f> refined = refineCorners(gray, scaleFactor, approx);
             vector<Point2d> scene; // Marker corners in scene, order corresponding with model.
             
             // Can we associate the corners with the model?
             if (sortCorners(bw, scaleFactor, refined, scene)) {
+                t_refine += (int)(GetTimeMs64() - t0);
                 // Can we detect the marker id?
                 int markerId = detectMarkerId(bw, scaleFactor, scene);
                 if (markerId > -1) {
@@ -95,7 +126,9 @@ void CircleMarker::findAndEstimate(Mat &img, Mat &output, bool debug, Camera &ca
                         // Do we have that marker in our
                         if (markers.at(midx).markerId == markerId) {
                             CircleMarker * marker = &markers.at(midx);
+                            t0 = GetTimeMs64();
                             marker->reestimateMarker(scene, camera);
+                            t_estimate += (int)(GetTimeMs64() - t0);
                             if (debug) drawMaker(*marker, camera, output);
                         }
                     }
@@ -103,6 +136,7 @@ void CircleMarker::findAndEstimate(Mat &img, Mat &output, bool debug, Camera &ca
             }
         }
     }
+    t_total += (int)(GetTimeMs64() - t0_t);
 }
 
 // Slow implementation using built-in opencv functions

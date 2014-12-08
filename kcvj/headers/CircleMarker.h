@@ -1,10 +1,15 @@
 #include <opencv2/opencv.hpp>
 #include <string>
+#include <fstream>
 
 #include "Camera.h"
+#include "Profiling.h"
 
 using namespace cv;
 using namespace std;
+
+void WriteCircleMarkerProfileHeader(ofstream & o);
+void WriteCircleMarkerProfileLine(ofstream & o);
 
 class SuspectedCircleMarker {
 public:

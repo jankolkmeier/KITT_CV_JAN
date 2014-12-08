@@ -1,9 +1,33 @@
-#define KCVJ_GUI 0
+#define KCVJ_GUI 1
 #define KCVJ_REMOTE 1
+#define KCVJ_PROFILING 1
 
 #include "kcvj_demo.h"
 
+void OutputHeader(ofstream & o) {
+    o << "frame,detected,x,y,z,t_grab,";
+    WriteCircleMarkerProfileHeader(o);
+    o << endl;
+}
+
+int o_frame = 0;
+int o_detected = 0;
+double o_x, o_y, o_z = 0;
+int t_grab = 0;
+
+ofstream of;
+
+void OutputLine(ofstream & o) {
+    o << o_frame << "," << o_detected << "," << o_x << "," << o_y << "," << o_z << "," << t_grab << ",";
+    WriteCircleMarkerProfileLine(o);
+    o << endl;
+}
+
+
 int run() {
+    of.open(_outFile);
+    OutputHeader(of);
+    
     VideoCapture * cap;
     
     int frame = _frameStart;
@@ -17,7 +41,7 @@ int run() {
     bool autoproceed = true;
     
     if (_sourceType == "capture_video" || _sourceType == "capture_camera") {
-        if (_sourceType == "capture_video" ) {
+        if (_sourceType == "capture_video"  ) {
             cap = new VideoCapture(_sourceName);
         } else {
             cap = new VideoCapture(atoi(_sourceName.c_str()));
@@ -33,6 +57,7 @@ int run() {
     while (true) {
         if (frame > _frameStop) frame = _frameStart;
         
+        int64 t0 = GetTimeMs64();
         if (_sourceType == "image_sequence") {
             stringstream ss;
             ss << _prefix << frame << _suffix;
@@ -49,13 +74,25 @@ int run() {
             return -1;
         }
         
+        t_grab = (int)(GetTimeMs64() - t0);
+        
         CircleMarker::findAndEstimate(input, output, _debug, camera, markers, _searchScale);
+        
+        o_detected = (markers.at(0).detected ? 1 : 0);
+        o_frame = frame;
+        o_x = markers.at(0).t.at<double>(0);
+        o_y = markers.at(0).t.at<double>(0);
+        o_z = markers.at(0).t.at<double>(0);
+        
+        OutputLine(of);
+        
         for (int m = 0; m < markers.size(); m++) {
             if (markers.at(m).detected) {
                 cout << markers.at(m).serialize() << endl;
                 markers.at(m).detected = false;
             }
         }
+        
         
         if (_debug) {
             if (!ctrl->imageSet) {
@@ -86,6 +123,8 @@ int run() {
                 break;
             }
         } while (!autoproceed);
+        #else
+        if (frame >= _frameStop) return 1;
         #endif
         if (autoproceed && _sourceType == "image_sequence") frame++;
     }
@@ -114,6 +153,7 @@ int main(int argc, char* argv[]) {
     ctrl->settings->add("searchScale", &paramSearchScale, true);
     ctrl->settings->add("markerSize", &paramMarkerSize, true);
     ctrl->settings->add("calibrationFile", &paramCalibrationFile, true);
+    ctrl->settings->add("outFile", &paramOutFile, true);
     
     ctrl->settings->add("frameStart", &paramFrameStart, true);
     ctrl->settings->add("frameStop", &paramFrameStop, true);
@@ -131,6 +171,7 @@ int main(int argc, char* argv[]) {
     
     bool result = run();
     ctrl->settings->save(settingsFile);
+    of.close();
     return result;
 }
 
@@ -250,6 +291,15 @@ string paramScale(int action, string val) {
     return "";
 }
 
+string paramOutFile(int action, string val) {
+    if (action == PARAM_SET) {
+        _outFile = val;
+    } else {
+        return _outFile;
+    }
+    return "";
+}
+
 string paramCalibrationFile(int action, string val) {
     if (action == PARAM_SET) {
         _calibrationFile = val;
@@ -266,5 +316,4 @@ void reduceImage(Mat &src, Mat &dst, float scale) {
     if (_flip)
         flip(tmp, tmp, 1);
     resize(tmp, dst, Size(), scale, scale, INTER_NEAREST);
-    //imshow("REDUCED", dst);
 }

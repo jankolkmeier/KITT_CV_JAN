@@ -21,6 +21,8 @@ const char * settingsFile = "default.yml";
 string _sourceType = "capture_camera"; // capture_camera | capture_video | image | image_sequence
 string _sourceName = "0"; // int for capture device or filename for video
 string _calibrationFile = "camera.yml";
+string _outFile = "output.csv";
+
 double _markerSize = 25.0;
 int _frameStart = 0;
 int _frameStop = 0;
@@ -40,6 +42,7 @@ string paramSourceName(int action, string val);
 string paramMarkerSize(int action, string val);
 string paramSearchScale(int action, string val);
 string paramCalibrationFile(int action, string val);
+string paramOutFile(int action, string val);
 
 string paramFrameStart(int action, string val);
 string paramFrameStop(int action, string val);
