@@ -162,6 +162,7 @@ int main(int argc, char* argv[]) {
     ctrl->settings->add("calibrationFile", &paramCalibrationFile, true);
     ctrl->settings->add("outFile", &paramOutFile, true);
     
+    ctrl->settings->add("manualCaptureSettings", &paramManualCaptureSettings, true);
     ctrl->settings->add("captureHeight", &paramCaptureHeight, true);
     ctrl->settings->add("captureWidth", &paramCaptureWidth, true);
     ctrl->settings->add("captureFPS", &paramCaptureFPS, true);
@@ -279,6 +280,17 @@ string paramDebug(int action, string val) {
     }
     return "";
 }
+
+
+string paramManualCaptureSettings(int action, string val) {
+    if (action == PARAM_SET) {
+        _manualCaptureSettings = atoi(val.c_str()) == 1;
+    } else {
+        return _manualCaptureSettings ? "1" : "0";
+    }
+    return "";
+}
+
  
 string paramFlip(int action, string val) {
     if (action == PARAM_SET) {

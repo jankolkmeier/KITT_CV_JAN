@@ -27,6 +27,8 @@ double _markerSize = 25.0;
 int _frameStart = 0;
 int _frameStop = 0;
 
+
+bool _manualCaptureSettings = false;
 int _captureHeight = 360;
 int _captureWidth = 640;
 int _captureFPS = 5;
@@ -52,6 +54,7 @@ string paramOutFile(int action, string val);
 string paramCaptureHeight(int action, string val);
 string paramCaptureWidth(int action, string val);
 string paramCaptureFPS(int action, string val);
+string paramManualCaptureSettings(int action, string val);
 
 string paramFrameStart(int action, string val);
 string paramFrameStop(int action, string val);
