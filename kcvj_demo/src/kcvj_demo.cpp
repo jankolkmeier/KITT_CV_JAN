@@ -52,15 +52,17 @@ int run() {
             return -1;
         }
 
-        // TODO: Parameterize capture settings
-        cap->set(CV_CAP_PROP_FRAME_WIDTH,  _captureWidth);
-        cap->set(CV_CAP_PROP_FRAME_HEIGHT, _captureHeight);
-        cap->set(CV_CAP_PROP_FPS,          _captureFPS);
+        if (_manualCaptureSettings) {
+            cap->set(CV_CAP_PROP_FRAME_WIDTH,  _captureWidth);
+            cap->set(CV_CAP_PROP_FRAME_HEIGHT, _captureHeight);
+            cap->set(CV_CAP_PROP_FPS,          _captureFPS);
+            cout << "Using manual capture settings; " << _captureWidth "x" << _captureHeight << ":" << _captureFPS << endl;
+        }
     }
     
     
     while (true) {
-        if (frame > _frameStop) frame = _frameStart;
+        if (frame > _frameStop && _frameStop != 0) frame = _frameStart;
         
         int64 t0 = GetTimeMs64();
         if (_sourceType == "image_sequence") {
@@ -133,7 +135,7 @@ int run() {
         #else
         if (frame >= _frameStop) return 1;
         #endif
-        if (autoproceed && _sourceType == "image_sequence") frame++;
+        if (autoproceed) frame++;
     }
     
     return 0;
