@@ -53,9 +53,9 @@ int run() {
         }
 
         // TODO: Parameterize capture settings
-        cap->set(CV_CAP_PROP_FRAME_WIDTH, 640);
-        cap->set(CV_CAP_PROP_FRAME_HEIGHT, 360);
-        cap->set(CV_CAP_PROP_FPS, 10);
+        cap->set(CV_CAP_PROP_FRAME_WIDTH,  _captureWidth);
+        cap->set(CV_CAP_PROP_FRAME_HEIGHT, _captureHeight);
+        cap->set(CV_CAP_PROP_FPS,          _captureFPS);
     }
     
     
@@ -161,6 +161,10 @@ int main(int argc, char* argv[]) {
     ctrl->settings->add("markerSize", &paramMarkerSize, true);
     ctrl->settings->add("calibrationFile", &paramCalibrationFile, true);
     ctrl->settings->add("outFile", &paramOutFile, true);
+    
+    ctrl->settings->add("captureHeight", &paramCaptureHeight, true);
+    ctrl->settings->add("captureWidth", &paramCaptureWidth, true);
+    ctrl->settings->add("captureFPS", &paramCaptureFPS, true);
     
     ctrl->settings->add("frameStart", &paramFrameStart, true);
     ctrl->settings->add("frameStop", &paramFrameStop, true);
@@ -281,6 +285,39 @@ string paramFlip(int action, string val) {
         _flip = atoi(val.c_str()) == 1;
     } else {
         return _flip ? "1" : "0";
+    }
+    return "";
+}
+
+string paramCaptureHeight(int action, string val) {
+    if (action == PARAM_SET) {
+        _captureHeight = atoi(val.c_str());
+    } else {
+        ostringstream buf;
+        buf << _captureHeight;
+        return buf.str();
+    }
+    return "";
+}
+
+string paramCaptureWidth(int action, string val) {
+    if (action == PARAM_SET) {
+        _captureWidth = atoi(val.c_str());
+    } else {
+        ostringstream buf;
+        buf << _captureWidth;
+        return buf.str();
+    }
+    return "";
+}
+
+string paramCaptureFPS(int action, string val) {
+    if (action == PARAM_SET) {
+        _captureFPS = atoi(val.c_str());
+    } else {
+        ostringstream buf;
+        buf << _captureFPS;
+        return buf.str();
     }
     return "";
 }

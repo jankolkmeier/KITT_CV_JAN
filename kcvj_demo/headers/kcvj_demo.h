@@ -26,6 +26,11 @@ string _outFile = "output.csv";
 double _markerSize = 25.0;
 int _frameStart = 0;
 int _frameStop = 0;
+
+int _captureHeight = 360;
+int _captureWidth = 640;
+int _captureFPS = 5;
+
 string _prefix = "frame_";
 string _suffix = ".png";
 
@@ -43,6 +48,10 @@ string paramMarkerSize(int action, string val);
 string paramSearchScale(int action, string val);
 string paramCalibrationFile(int action, string val);
 string paramOutFile(int action, string val);
+
+string paramCaptureHeight(int action, string val);
+string paramCaptureWidth(int action, string val);
+string paramCaptureFPS(int action, string val);
 
 string paramFrameStart(int action, string val);
 string paramFrameStop(int action, string val);
