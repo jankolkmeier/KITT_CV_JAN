@@ -1,5 +1,5 @@
 close all;
-raw_test = csvread('output_mb.csv',1);
+raw_test = csvread('output_bb.csv',1);
 raw_truth = csvread('optitrack_truth.csv');
 raw_test_match = raw_test(raw_test(raw_test(:,2)==1)+1,:);
 raw_truth_match = raw_truth(raw_test(raw_test(:,2)==1)+1,:);
