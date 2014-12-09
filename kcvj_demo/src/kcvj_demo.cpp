@@ -56,7 +56,7 @@ int run() {
             cap->set(CV_CAP_PROP_FRAME_WIDTH,  _captureWidth);
             cap->set(CV_CAP_PROP_FRAME_HEIGHT, _captureHeight);
             cap->set(CV_CAP_PROP_FPS,          _captureFPS);
-            cout << "Using manual capture settings; " << _captureWidth "x" << _captureHeight << ":" << _captureFPS << endl;
+            cout << "Using manual capture settings; " << _captureWidth << "x" << _captureHeight << ":" << _captureFPS << endl;
         }
     }
     
