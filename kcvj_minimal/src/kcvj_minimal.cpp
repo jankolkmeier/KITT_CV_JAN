@@ -9,11 +9,12 @@ Mat input, output;
 
 int main(int argc, char* argv[]) {
 	int camera_name = 0;
-	int gui = 1;
+	int gui = 0;
 	string calibration = "camera.yml";
 
     if (argc != 4) {
-       cout << "Options: " << argv[0] << " [src] [calibration] [gui]" << endl;
+       cout << "Options:  " << argv[0] << " [src] [calibration] [gui]" << endl;
+       cout << "Defaults: " << argv[0] << " 0 camera.yml 0" << endl;
     } else {
        camera_name = atoi(argv[1]);
        calibration = argv[2];
@@ -27,6 +28,10 @@ int main(int argc, char* argv[]) {
         cout << "Failed to open capture device." << endl;
         return -1;
     }
+
+    cap.set(CV_CAP_PROP_FRAME_WIDTH, 640);
+    cap.set(CV_CAP_PROP_FRAME_HEIGHT, 360);
+    cap.set(CV_CAP_PROP_FPS, 10);
     
     vector<CircleMarker> markers;
     markers.push_back(CircleMarker(0, 25.0));
@@ -39,6 +44,8 @@ int main(int argc, char* argv[]) {
             if (markers.at(m).detected) {
                 cout << markers.at(m).serialize() << endl;
                 markers.at(m).detected = false;
+            } else {
+                cout <<  " - " << endl;
             }
         }
         

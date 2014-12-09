@@ -51,6 +51,11 @@ int run() {
             cout << "Failed to open capture: " << _sourceName << endl;
             return -1;
         }
+
+        // TODO: Parameterize capture settings
+        cap->set(CV_CAP_PROP_FRAME_WIDTH, 640);
+        cap->set(CV_CAP_PROP_FRAME_HEIGHT, 360);
+        cap->set(CV_CAP_PROP_FPS, 10);
     }
     
     
@@ -90,6 +95,8 @@ int run() {
             if (markers.at(m).detected) {
                 cout << markers.at(m).serialize() << endl;
                 markers.at(m).detected = false;
+            } else {
+                cout << " - "  << endl;
             }
         }
         
