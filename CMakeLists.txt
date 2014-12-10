@@ -7,6 +7,8 @@ file(GLOB SRC_DEMO ${PROJECT_SOURCE_DIR}/kcvj_demo/src/*.cpp)
 file(GLOB HEADERS_DEMO ${PROJECT_SOURCE_DIR}/kcvj_demo/headers/*.h)     
 file(GLOB SRC_MIN ${PROJECT_SOURCE_DIR}/kcvj_minimal/src/*.cpp)
 file(GLOB HEADERS_MIN ${PROJECT_SOURCE_DIR}/kcvj_minimal/headers/*.h)     
+file(GLOB SRC_CALIB ${PROJECT_SOURCE_DIR}/calibration/src/*.cpp)
+file(GLOB HEADERS_CALIB ${PROJECT_SOURCE_DIR}/calibration/headers/*.h)     
 
 include_directories(${PROJECT_SOURCE_DIR}/kcvj/src)      
 include_directories(${PROJECT_SOURCE_DIR}/kcvj/headers)      
@@ -14,6 +16,8 @@ include_directories(${PROJECT_SOURCE_DIR}/kcvj_demo/src)
 include_directories(${PROJECT_SOURCE_DIR}/kcvj_demo/headers)      
 include_directories(${PROJECT_SOURCE_DIR}/kcvj_min/src)      
 include_directories(${PROJECT_SOURCE_DIR}/kcvj_min/headers)      
+include_directories(${PROJECT_SOURCE_DIR}/calibration/src)      
+include_directories(${PROJECT_SOURCE_DIR}/calibration/headers)      
 
 find_package(OpenCV REQUIRED)
 
@@ -24,6 +28,9 @@ target_link_libraries(kcvj_demo ${OpenCV_LIBS} kcvj)
 
 add_executable(kcvj_minimal ${SRC_MIN} ${HEADERS_MIN})
 target_link_libraries(kcvj_minimal ${OpenCV_LIBS} kcvj)
+
+add_executable(calibration ${SRC_CALIB} ${HEADERS_CALIB})
+target_link_libraries(calibration ${OpenCV_LIBS})
 
 #SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -mfpu=neon")
 
