@@ -470,6 +470,7 @@ int main( int argc, char** argv )
         {
             Mat view0;
             capture >> view0;
+            cout << view0.rows << "x" << view0.cols << endl;
             view0.copyTo(view);
         }
         else if( i < (int)imageList.size() )
@@ -518,7 +519,6 @@ int main( int argc, char** argv )
         if ( mode == CAPTURING && (found || saveOnly) &&
            (!capture.isOpened() || clock() - prevTimestamp > delay*1e-3*CLOCKS_PER_SEC) )
         {
-            cout << "Ding\n";
             if (saveOnly) {
                 string filename = "view_0000.jpg";
                 filename = format( "view_%d.jpg", (int)imagePoints.size());
