@@ -7,6 +7,7 @@
       <script src="/engine.io.js"></script>
       <script src="/jquery.min.js"></script>
       <script src="/angular.min.js"></script>
+      <script src="/scrollglue.js"></script>
       <script src="/controller.js"></script>
     </head>
     <body>
@@ -15,12 +16,26 @@
           <img ng-src="{{'data:image/png;base64,'+img}}" id="debug_img">
         </div>
         <div id="bottom">
+          <button ng-click="send('_default.yml')">SPAWN DEFAULT</button>
+          <button ng-click="send('/')">STOP CHILD</button>
+          <br />
           <button ng-click="getParams()">PARAMS</button>
           <button ng-click="getFrame()">FRAME</button>
           <button ng-click="stream = true; getFrame();">STREAM</button>
-          <button ng-click="stream = false;">STOP</button>
+          <button ng-click="stream = false;">STOP STREAMING</button>
           <br />
-          <input type="text" ng-model="query"><button ng-click="send()">SEND</button>
+          <input type="text" ng-model="query"><button ng-click="sendQuery()">SEND</button><br />
+          <br />
+          <input type="text" ng-model="_scale"><button ng-click="send('SET scale '+_scale)">searchScale</button><br />
+          <input type="text" ng-model="_flip"><button ng-click="send('SET flip '+_flip)">flip</button><br />
+          <input type="text" ng-model="_captureWidth"><button ng-click="send('SET captureWidth '+_captureWidth)">captureWidth</button><br />
+          <input type="text" ng-model="_captureHeight"><button ng-click="send('SET captureHeight '+_captureHeight)">captureHeight</button><br />
+          <input type="text" ng-model="_captureFPS"><button ng-click="send('SET captureFPS '+_captureFPS)">captureFPS</button><br />
+          <input type="text" ng-model="_markerSize"><button ng-click="send('SET markerSize '+_markerSize)">markerSize</button><br />
+          <input type="text" ng-model="_searchScale"><button ng-click="send('SET searchScale '+_searchScale)">searchScale</button><br />
+          <input type="text" ng-model="_outFile"><button ng-click="send('SET outFile '+_outFile)">outFile</button><br />
+          <button ng-click="send('SET SAVE')">SAVE</button><br />
+          
           <table id="profileTab">
             <tr ng-repeat='(key, val) in timers track by key'>
                 <td>{{key}}: </td><td>{{val}}</td>
@@ -35,8 +50,11 @@
                 </tr>
               </table>
           </div>
-          <div id="log">
-            {{log}}
+          <div ng-class="{ 'glued' : glued }"><h4 ng-click="log = []">LOG</h4></div>
+          <div scroll-glue ng-model="glued" id='log'>
+            <ul>
+              <li ng-repeat="item in log" class='{{item.class}}'>{{item.txt}}</li>
+            </ul>
           </div>
         </div>
       </div>

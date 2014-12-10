@@ -28,6 +28,25 @@ body {
     overflow-y: scroll;
 }
 
+#log ul {
+  display: block;
+  font-family: monospace;
+  padding:0;
+  margin:0;
+}
+
+#log ul li:nth-child(even) {
+  background:#f8f8f8;
+}
+
+#log ul li {
+  margin:0;
+  padding:3px 5px;
+  list-style-type:none;
+}
+
+
+
 #debug_img {
   border: 1px solid #fff;
   width: 498px;

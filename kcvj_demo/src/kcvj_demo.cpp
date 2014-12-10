@@ -80,11 +80,12 @@ int run() {
             cout << "Image empty" << endl;
             return -1;
         }
-        
+
         t_grab = (int)(GetTimeMs64() - t0);
+
         
         CircleMarker::findAndEstimate(input, output, _debug, camera, markers, _searchScale);
-        
+
         o_detected = (markers.at(0).detected ? 1 : 0);
         o_frame = frame;
         o_x = markers.at(0).t.at<double>(0);
@@ -92,7 +93,7 @@ int run() {
         o_z = markers.at(0).t.at<double>(2);
         
         OutputLine(of);
-        
+
         for (int m = 0; m < markers.size(); m++) {
             if (markers.at(m).detected) {
                 cout << markers.at(m).serialize() << endl;
@@ -101,8 +102,7 @@ int run() {
                 cout << " - "  << endl;
             }
         }
-        
-        
+
         if (_debug) {
             if (!ctrl->imageSet) {
                 reduceImage(output, reduced, _scale);
@@ -133,7 +133,7 @@ int run() {
             }
         } while (!autoproceed);
         #else
-        if (frame >= _frameStop) return 1;
+        if (frame >= _frameStop && _frameStop != 0) return 1;
         #endif
         if (autoproceed) frame++;
     }

@@ -7,6 +7,7 @@ CircleMarker::CircleMarker(int markerId, double size) {
     this->tvec = Mat(3,1,DataType<double>::type);
     this->T = Mat(4, 4, DataType<double>::type);
     this->R = Mat(3, 3, DataType<double>::type);
+    this->t = Mat(3, 1, DataType<double>::type);
     //this->rout = Mat(3, 1, DataType<double>::type);
     double *p = T.ptr<double>(3);
     p[0] = p[1] = p[2] = 0; p[3] = 1;

@@ -8,6 +8,8 @@ var static = require('node-static');
 
 var fileServer = new static.Server('./app');
 
+var spawn = require('child_process').spawn;
+
 var http = require('http').createServer(function(request, response) {
     request.addListener('end', function () {
         //console.log("Serve file");
@@ -17,6 +19,9 @@ var http = require('http').createServer(function(request, response) {
 
 var server = engine.attach(http);
 var sockets = [];
+
+var kcvj = null;
+
 function removeSocket(s) { sockets.splice(sockets.indexOf(s), 1); }
 function broadcast(msg) {
     var data = JSON.stringify(msg);
@@ -29,7 +34,39 @@ server.on('connection', function(socket) {
     sockets.push(socket);
     socket.on('message', function(msg) {
         //console.log(">"+msg);
-        client0.send(msg);
+        if (msg[0] === '_') {
+            var content = msg.slice(1);
+            console.log("Starting processs. Params: "+client0.port+" "+content);
+
+            if (kcvj != null) {
+                kcvj.kill();
+                kcvj = null;
+            }
+
+            kcvj = spawn('/home/jan/KITT_CV_JAN/build/kcvj_demo', [client0.port+"", content], {
+                cwd: '/home/jan/KITT_CV_JAN/build/'
+            });
+
+            kcvj.stdout.on('data', function (data) {
+                    broadcast({
+                        param: 'log',
+                        value: data+""
+                    });
+                //console.log('kcvj> ' + data);
+            });
+
+            kcvj.on('close', function (code, signal) {
+                  console.log('KCVJ ended: '+signal);
+            });
+
+        } else if (msg[0] === '/') {
+            if (kcvj != null) {
+                kcvj.kill();
+                kcvj = null;
+            }
+        } else {
+            client0.send(msg);
+        }
     });
     socket.on('close', function() {
         removeSocket(socket);

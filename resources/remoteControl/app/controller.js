@@ -1,4 +1,4 @@
-var app = angular.module('remoteControlApp', []);
+var app = angular.module('remoteControlApp', ['luegg.directives']);
 window._stream = false;
 
 app.factory('socket', function($rootScope) {
@@ -33,14 +33,19 @@ function RemoteCTRL($scope, socket) {
     $scope.xpos  = 0;
     $scope.ypos  = 0;
     $scope.zpos  = 0;
+    $scope.glued = true;
 
-    $scope.log = "[START]";
+    $scope.log = [];
     $scope.img = "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUH3gYDDC8yqsQdOAAAAB1pVFh0Q29tbWVudAAAAAAAQ3JlYXRlZCB3aXRoIEdJTVBkLmUHAAAAC0lEQVQI12NggAIAAAkAAWMqFg0AAAAASUVORK5CYII=";
     $scope.query = "";
     $scope.stream = false;
 
-    $scope.send = function() {
+    $scope.sendQuery = function() {
         socket.send($scope.query);
+    }
+
+    $scope.send = function(msg) {
+        socket.send(msg);
     }
 
     $scope.getParams = function() {
@@ -78,9 +83,10 @@ function RemoteCTRL($scope, socket) {
             $scope.xpos = poss[0];
             $scope.ypos = poss[1];
             $scope.zpos = poss[2];
+        } else if (msg.param == 'log') {
+            $scope.log.push({ txt: msg.value+"", class: 'log_reg' });
         } else {
-            console.log(data);
-            $scope.log = data + "\n" + $scope.log;
+            $scope.log.push({ txt: data, class: 'log_war' });
         }
     });
 
