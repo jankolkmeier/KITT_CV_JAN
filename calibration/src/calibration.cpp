@@ -55,17 +55,19 @@ static void help()
         "                              #  of board views actually available)\n"
         "     [-d <delay>]             # a minimum delay in ms between subsequent attempts to capture a next view\n"
         "                              # (used only for video capturing)\n"
-        "     [-s <squareSize>]       # square size in some user-defined units (1 by default)\n"
+        "     [-s <squareSize>]        # square size in some user-defined units (1 by default)\n"
         "     [-o <out_camera_params>] # the output filename for intrinsic [and extrinsic] parameters\n"
         "     [-op]                    # write detected feature points\n"
         "     [-oe]                    # write extrinsic parameters\n"
         "     [-zt]                    # assume zero tangential distortion\n"
-        "     [-a <aspectRatio>]      # fix aspect ratio (fx/fy)\n"
+        "     [-a <aspectRatio>]       # fix aspect ratio (fx/fy)\n"
         "     [-p]                     # fix the principal point at the center\n"
         "     [-v]                     # flip the captured images around the horizontal axis\n"
         "     [-V]                     # use a video file, and not an image list, uses\n"
         "                              # [input_data] string for the video file name\n"
         "     [-su]                    # show undistorted images after calibration\n"
+        "     [-cw <width>]            # webcam capture width\n"
+        "     [-ch <height>]           # webcam capture height\n"
         "     [input_data]             # input data, one of the following:\n"
         "                              #  - text file with a list of the images of the board\n"
         "                              #    the text file can be generated with imagelist_creator\n"
@@ -299,6 +301,8 @@ int main( int argc, char** argv )
     const char* inputFilename = 0;
 
     int i, nframes = 10;
+    int captureWidth = -1;
+    int captureHeight = -1;
     bool writeExtrinsics = false, writePoints = false;
     bool undistortImage = false;
     int flags = 0;
@@ -352,10 +356,21 @@ int main( int argc, char** argv )
             if( sscanf( argv[++i], "%f", &squareSize ) != 1 || squareSize <= 0 )
                 return fprintf( stderr, "Invalid board square width\n" ), -1;
         }
+        
         else if( strcmp( s, "-n" ) == 0 )
         {
             if( sscanf( argv[++i], "%u", &nframes ) != 1 || nframes <= 3 )
                 return printf("Invalid number of images\n" ), -1;
+        }
+        
+        else if( strcmp( s, "-cw" ) == 0 )
+        {
+            sscanf( argv[++i], "%u", &captureWidth );
+        }
+        
+        else if( strcmp( s, "-ch" ) == 0 )
+        {
+            sscanf( argv[++i], "%u", &captureHeight );
         }
         else if( strcmp( s, "-a" ) == 0 )
         {
@@ -427,8 +442,16 @@ int main( int argc, char** argv )
     if( !imageList.empty() )
         nframes = (int)imageList.size();
 
-    if( capture.isOpened() )
-        printf( "%s", liveCaptureHelp );
+    if( capture.isOpened() ) {
+        if (captureHeight > 10 && captureWidth > 10) {
+            capture.set(CV_CAP_PROP_FRAME_WIDTH,  captureWidth);
+            capture.set(CV_CAP_PROP_FRAME_HEIGHT, captureHeight);
+            cout << "Setting capture resolution to " << captureWidth << "x" << captureHeight << endl;
+        }
+        
+        cout << "Capturing will start in a few moments..." << endl;
+
+    }
 
     //namedWindow( "Image View", 1 );
 
