@@ -56,6 +56,7 @@ static void help()
         "     [-d <delay>]             # a minimum delay in ms between subsequent attempts to capture a next view\n"
         "                              # (used only for video capturing)\n"
         "     [-s <squareSize>]        # square size in some user-defined units (1 by default)\n"
+        "     [-so]                    # save images only\n"
         "     [-o <out_camera_params>] # the output filename for intrinsic [and extrinsic] parameters\n"
         "     [-op]                    # write detected feature points\n"
         "     [-oe]                    # write extrinsic parameters\n"
@@ -310,6 +311,7 @@ int main( int argc, char** argv )
     bool flipVertical = false;
     bool showUndistorted = false;
     bool videofile = false;
+    bool saveOnly = false;
     int delay = 1000;
     clock_t prevTimestamp = 0;
     int mode = DETECTION;
@@ -403,6 +405,10 @@ int main( int argc, char** argv )
         {
             flipVertical = true;
         }
+        else if( strcmp( s, "-so" ) == 0 )
+        {
+            saveOnly = true;
+        }
         else if( strcmp( s, "-V" ) == 0 )
         {
             videofile = true;
@@ -487,9 +493,9 @@ int main( int argc, char** argv )
         vector<Point2f> pointbuf;
         cvtColor(view, viewGray, COLOR_BGR2GRAY);
 
-        bool found;
-        switch( pattern )
-        {
+        bool found = false;
+        if (!saveOnly) {
+            switch( pattern ) {
             case CHESSBOARD:
                 found = findChessboardCorners( view, boardSize, pointbuf,
                     CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FAST_CHECK | CV_CALIB_CB_NORMALIZE_IMAGE);
@@ -502,16 +508,23 @@ int main( int argc, char** argv )
                 break;
             default:
                 return fprintf( stderr, "Unknown pattern type\n" ), -1;
+            }
         }
 
        // improve the found corners' coordinate accuracy
         if( pattern == CHESSBOARD && found) cornerSubPix( viewGray, pointbuf, Size(11,11),
             Size(-1,-1), TermCriteria( CV_TERMCRIT_EPS+CV_TERMCRIT_ITER, 30, 0.1 ));
 
-        if( mode == CAPTURING && found &&
+        if ( mode == CAPTURING && (found || saveOnly) &&
            (!capture.isOpened() || clock() - prevTimestamp > delay*1e-3*CLOCKS_PER_SEC) )
         {
-            //printf("Captured: %d\n", 0);
+            cout << "Ding\n";
+            if (saveOnly) {
+                string filename = "view_0000.jpg";
+                filename = format( "view_%d.jpg", (int)imagePoints.size());
+                imwrite(filename, view);
+            }
+            
             imagePoints.push_back(pointbuf);
             prevTimestamp = clock();
             blink = capture.isOpened();
@@ -523,7 +536,7 @@ int main( int argc, char** argv )
         }
         
         string msg = mode == CAPTURING ? "100/100" :
-            mode == CALIBRATED ? "Calibrated" : "Press 'g' to start";
+            mode == CALIBRATED ? "Calibrated" : "Not calibrated";
         int baseLine = 0;
         Size textSize = getTextSize(msg, 1, 1, 1, &baseLine);
         Point textOrigin(view.cols - 2*textSize.width - 10, view.rows - 2*baseLine - 10);
@@ -538,8 +551,8 @@ int main( int argc, char** argv )
 
         cout << msg << endl;
         //printf(msg)
-        putText( view, msg, textOrigin, 1, 1,
-                 mode != CALIBRATED ? Scalar(0,0,255) : Scalar(0,255,0));
+        //putText( view, msg, textOrigin, 1, 1,
+        //       mode != CALIBRATED ? Scalar(0,0,255) : Scalar(0,255,0));
 
         if( blink )
             bitwise_not(view, view);
@@ -569,6 +582,7 @@ int main( int argc, char** argv )
 
         if( mode == CAPTURING && imagePoints.size() >= (unsigned)nframes )
         {
+            if (saveOnly) break;
             if( runAndSave(outputFilename, imagePoints, imageSize,
                        boardSize, pattern, squareSize, aspectRatio,
                        flags, cameraMatrix, distCoeffs,
