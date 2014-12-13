@@ -55,7 +55,6 @@ void WriteCircleMarkerProfileLine(ofstream & o) {
     o << t_total << "," << t_prepare << "," << t_search << "," << t_approx << "," << t_refine << "," << t_estimate;
 }
 
-
 void CircleMarker::findAndEstimate(Mat &img, Mat &output, bool debug, Camera &camera, vector<CircleMarker> &markers, double scaleFactor, int tr) {
     t_prepare = 0;
     t_search = 0;
