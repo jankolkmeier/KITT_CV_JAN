@@ -26,12 +26,14 @@ string _outFile = "output.csv";
 double _markerSize = 25.0;
 int _frameStart = 0;
 int _frameStop = 0;
-
+int _threshold = 50;
 
 bool _manualCaptureSettings = false;
 int _captureHeight = 360;
 int _captureWidth = 640;
 int _captureFPS = 5;
+
+string _translation = "";
 
 string _prefix = "frame_";
 string _suffix = ".png";
@@ -44,6 +46,8 @@ double _scale = 0.2;
 Mat input, output, reduced;
 
 // Setting Callbacks
+string paramThreshold(int action, string val);
+string paramTranslation(int action, string val);
 string paramSourceType(int action, string val);
 string paramSourceName(int action, string val);
 string paramMarkerSize(int action, string val);

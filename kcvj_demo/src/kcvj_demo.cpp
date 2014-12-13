@@ -1,11 +1,11 @@
-#define KCVJ_GUI 0
+#define KCVJ_GUI 1
 #define KCVJ_REMOTE 1
 #define KCVJ_PROFILING 1
 
 #include "kcvj_demo.h"
 
 void OutputHeader(ofstream & o) {
-    o << "frame,detected,x,y,z,t_grab,";
+    o << "t,frame,detected,x,y,z,t_grab,";
     WriteCircleMarkerProfileHeader(o);
     o << endl;
 }
@@ -14,17 +14,24 @@ int o_frame = 0;
 int o_detected = 0;
 double o_x, o_y, o_z = 0;
 int t_grab = 0;
+int64 time_start;
 
 ofstream of;
 
 void OutputLine(ofstream & o) {
-    o << o_frame << "," << o_detected << "," << o_x << "," << o_y << "," << o_z << "," << t_grab << ",";
+    int o_t = (int)(GetTimeMs64() - time_start);
+    o << o_t << "," << o_frame << "," << o_detected << "," << o_x << "," << o_y << "," << o_z << "," << t_grab << ",";
     WriteCircleMarkerProfileLine(o);
     o << endl;
 }
 
 
 int run() {
+    // TODO: http://docs.opencv.org/modules/video/doc/motion_analysis_and_object_tracking.html#kalmanfilter-kalmanfilter
+    //       http://opencvexamples.blogspot.com/2014/01/kalman-filter-implementation-tracking.html
+    //KalmanFilter KF_ROT(?, 3, ?0);
+    //KalmanFilter KF_POS(?, 3, ?0);
+    
     of.open(_outFile.c_str());
     OutputHeader(of);
     
@@ -37,7 +44,7 @@ int run() {
     Camera camera(_calibrationFile);
     if (camera.cameraMatrix.empty()) return -1;
     
-    Mat input;
+    Mat input_img;
     bool autoproceed = true;
     
     if (_sourceType == "capture_video" || _sourceType == "capture_camera") {
@@ -57,9 +64,15 @@ int run() {
             cap->set(CV_CAP_PROP_FRAME_HEIGHT, _captureHeight);
             cap->set(CV_CAP_PROP_FPS,          _captureFPS);
             cout << "Using manual capture settings; " << _captureWidth << "x" << _captureHeight << ":" << _captureFPS << endl;
+        } else {
+            cap->set(CV_CAP_PROP_FRAME_WIDTH,  camera.width);
+            cap->set(CV_CAP_PROP_FRAME_HEIGHT, camera.height);
+            cout << "Using calibration capture settings; " << camera.width << "x" << camera.height << endl;
         }
     }
     
+    _translation = "/";
+    time_start = GetTimeMs64();
     
     while (true) {
         if (frame > _frameStop && _frameStop != 0) frame = _frameStart;
@@ -69,14 +82,14 @@ int run() {
             stringstream ss;
             ss << _prefix << frame << _suffix;
             cout << "Frame " << frame << endl;
-            input = imread(ss.str(), CV_LOAD_IMAGE_COLOR);
+            input_img = imread(ss.str(), CV_LOAD_IMAGE_COLOR);
         } else if (_sourceType == "image") {
-            input = imread(_sourceName, CV_LOAD_IMAGE_COLOR);
+            input_img = imread(_sourceName, CV_LOAD_IMAGE_COLOR);
         } else if (_sourceType == "capture_video" || _sourceType == "capture_camera") {
-            cap->read(input);
+            cap->read(input_img);
         }
         
-        if (input.empty()) {
+        if (input_img.empty()) {
             cout << "Image empty" << endl;
             return -1;
         }
@@ -84,7 +97,7 @@ int run() {
         t_grab = (int)(GetTimeMs64() - t0);
 
         
-        CircleMarker::findAndEstimate(input, output, _debug, camera, markers, _searchScale);
+        CircleMarker::findAndEstimate(input_img, output, _debug, camera, markers, _searchScale, _threshold);
 
         o_detected = (markers.at(0).detected ? 1 : 0);
         o_frame = frame;
@@ -98,8 +111,9 @@ int run() {
             if (markers.at(m).detected) {
                 cout << markers.at(m).serialize() << endl;
                 markers.at(m).detected = false;
+                _translation = markers.at(m).serialize();
             } else {
-                cout << " - "  << endl;
+                //cout << " - "  << endl;
             }
         }
 
@@ -142,6 +156,7 @@ int run() {
 }
 
 int main(int argc, char* argv[]) {
+    
     if (argc == 1) {
         cout << "Using default port (" << port << ") and settings file (";
         cout <<  settingsFile << ")" << endl;
@@ -157,6 +172,8 @@ int main(int argc, char* argv[]) {
     
     ctrl = new RemoteControl(port, settingsFile);
     
+    ctrl->settings->add("translation", &paramTranslation, false);
+
     ctrl->settings->add("sourceType", &paramSourceType, true);
     ctrl->settings->add("sourceName", &paramSourceName, true);
     ctrl->settings->add("searchScale", &paramSearchScale, true);
@@ -177,6 +194,7 @@ int main(int argc, char* argv[]) {
     
     ctrl->settings->add("flip", &paramFlip, true);
     ctrl->settings->add("scale", &paramScale, true);
+    ctrl->settings->add("threshold", &paramThreshold, true);
     
     if (!ctrl->settings->load(settingsFile)) {
         cout << "Couldn't find calibration file, writing defaults to " << settingsFile << endl;
@@ -358,11 +376,30 @@ string paramOutFile(int action, string val) {
     return "";
 }
 
+string paramTranslation(int action, string val) {
+    if (action == PARAM_SET) {
+    } else {
+        return _translation;
+    }
+    return "";
+}
+
 string paramCalibrationFile(int action, string val) {
     if (action == PARAM_SET) {
         _calibrationFile = val;
     } else {
         return _calibrationFile;
+    }
+    return "";
+}
+
+string paramThreshold(int action, string val) {
+    if (action == PARAM_SET) {
+        _threshold = atoi(val.c_str());
+    } else {
+        ostringstream buf;
+        buf << _threshold;
+        return buf.str();
     }
     return "";
 }

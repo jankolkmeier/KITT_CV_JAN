@@ -9,4 +9,6 @@ public:
     Camera(Mat cm, Mat dc);
     Camera(string calib_name);
     Mat cameraMatrix, distCoeffs;
+    int width;
+    int height;
 };

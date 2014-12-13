@@ -54,7 +54,7 @@ void * RemoteControl::listen(void * parent) {
     size_t recv_len = 0;
 
     /* Listen on UDP port */
-    cout << "Waiting for requests..." << endl;
+    cout << "Remote started." << endl;
     while(self->running) {
         fflush(stdout);
 

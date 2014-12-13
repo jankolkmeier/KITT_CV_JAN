@@ -8,49 +8,44 @@ using namespace std;
 Mat input, output;
 
 int main(int argc, char* argv[]) {
-	int camera_name = 0;
+    int camera_name = 0;
+    string calibration = "camera.yml";
 	int gui = 0;
-	string calibration = "camera.yml";
-
-    if (argc != 4) {
-       cout << "Options:  " << argv[0] << " [src] [calibration] [gui]" << endl;
-       cout << "Defaults: " << argv[0] << " 0 camera.yml 0" << endl;
-    } else {
-       camera_name = atoi(argv[1]);
-       calibration = argv[2];
-       gui = atoi(argv[3]);
-    } 
-    
-    cout << "Using camera " << camera_name << " with calibration file " << calibration << " and gui set to " << gui << endl;
+    int thresh = 75;
+    double markerSize = 25.0;
     
     VideoCapture cap(camera_name);
     if(!cap.isOpened()) {
         cout << "Failed to open capture device." << endl;
         return -1;
     }
-
-    cap.set(CV_CAP_PROP_FRAME_WIDTH, 640);
-    cap.set(CV_CAP_PROP_FRAME_HEIGHT, 360);
-    cap.set(CV_CAP_PROP_FPS, 10);
     
-    vector<CircleMarker> markers;
-    markers.push_back(CircleMarker(0, 25.0));
     Camera camera(calibration);
+    CircleMarker marker0(0, markerSize);
+    vector<CircleMarker> markers;
+    markers.push_back(marker0);
+                            
+    cap.set(CV_CAP_PROP_FRAME_WIDTH, camera.width);
+    cap.set(CV_CAP_PROP_FRAME_HEIGHT, camera.height);
+    //cap.set(CV_CAP_PROP_FPS, 10);
+    
+    cout << "Using camera " << camera_name << " with calibration file " << calibration;
+    cout << " and gui " << (gui>0 ? "enabled" : "disabled") << endl;
     
     while (true) {
         cap >> input;
-        CircleMarker::findAndEstimate(input, output, gui > 0, camera, markers, 0.3);
-        for (int m = 0; m < markers.size(); m++) {
-            if (markers.at(m).detected) {
-                cout << markers.at(m).serialize() << endl;
-                markers.at(m).detected = false;
-            } else {
-                cout <<  " - " << endl;
-            }
+        CircleMarker::findAndEstimate(input, output, gui > 0, camera, markers, 0.3, thresh);
+        if (marker0.detected) {
+            cout << marker0.serialize() << endl;
+            marker0.detected = false;
+        } else {
+            cout <<  " - " << endl;
         }
         
-        if (gui > 0) imshow("OUTPUT", output);
-        if (waitKey(30) == 'q') break;
+        if (gui > 0) {
+            imshow("OUTPUT", output);
+            if (waitKey(30) == 'q') break;
+        }
     }
     
     return 0;

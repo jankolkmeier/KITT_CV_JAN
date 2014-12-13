@@ -8,7 +8,7 @@ CircleMarker::CircleMarker(int markerId, double size) {
     this->T = Mat(4, 4, DataType<double>::type);
     this->R = Mat(3, 3, DataType<double>::type);
     this->t = Mat(3, 1, DataType<double>::type);
-    //this->rout = Mat(3, 1, DataType<double>::type);
+    this->r = Mat(3, 1, DataType<double>::type);
     double *p = T.ptr<double>(3);
     p[0] = p[1] = p[2] = 0; p[3] = 1;
     
@@ -25,26 +25,18 @@ void CircleMarker::reestimateMarker(vector<Point2d> & scene, Camera & camera) {
     detected = true;
     Rodrigues(rvec, R);
     R = R.t();  // rotation of inverse
-    t = -R * tvec; // translation of inverse
+    eulerAngles(R, r);
+    t = -R * tvec; // translation out (inverse)
+    //Rodrigues(R, r); // rotation out
     T(Range(0,3), Range(0,3)) = R * 1; // copies R into T
     T(Range(0,3), Range(3,4)) = t * 1; // copies tvec into T
-    //Rodrigues(R, rout);
 }
 
 
 string CircleMarker::serialize() {
     ostringstream buf;
-    buf << markerId << " ";
-    /*
-    for (int r = 0; r < 4; r++) {
-        for (int c = 0; c < 4; c++) {
-            if (r+c > 0) buf << " ";
-            buf << ((int) (T.at<double>(r, c) * 1000));
-        }
-    }
-     */
-    
-    buf << " " << t.at<double>(0) << " " << t.at<double>(1) << " " << t.at<double>(2);
+    buf << "T: " << t.at<double>(0) << " " << t.at<double>(1) << " " << t.at<double>(2) << "\n";
+    buf << "R: " << rad2deg(r.at<double>(0)) << " " << rad2deg(r.at<double>(1)) << " " << rad2deg(r.at<double>(2));
     return buf.str();
 }
 
@@ -64,7 +56,7 @@ void WriteCircleMarkerProfileLine(ofstream & o) {
 }
 
 
-void CircleMarker::findAndEstimate(Mat &img, Mat &output, bool debug, Camera &camera, vector<CircleMarker> &markers, double scaleFactor) {
+void CircleMarker::findAndEstimate(Mat &img, Mat &output, bool debug, Camera &camera, vector<CircleMarker> &markers, double scaleFactor, int tr) {
     t_prepare = 0;
     t_search = 0;
     t_approx = 0;
@@ -78,11 +70,11 @@ void CircleMarker::findAndEstimate(Mat &img, Mat &output, bool debug, Camera &ca
     Mat gray, bw;
     cvtColor(img, gray, CV_BGR2GRAY);
     resize(gray, bw, Size(), scaleFactor, scaleFactor);
-    threshold(bw, bw, 75, 255, THRESH_BINARY_INV);
+    threshold(bw, bw, tr, 255, THRESH_BINARY_INV);
     t_prepare += (int)(GetTimeMs64() - t0);
     
     t0 = GetTimeMs64();
-    vector<Point3i> circles;
+    vector<SuspectedCircleMarker> circles;
     searchNestedCircles(bw, circles);
     t_search += (int)(GetTimeMs64() - t0);
 
@@ -95,43 +87,70 @@ void CircleMarker::findAndEstimate(Mat &img, Mat &output, bool debug, Camera &ca
     }
 
     for (int i = 0; i < circles.size(); i++) {
-        Point center(circles[i].x, circles[i].y);
-        int range = circles[i].z*2.0;
-        int x1 = max(0, circles[i].x-range);
-        int y1 = max(0, circles[i].y-range);
-        int x2 = min(bw.size().width, circles[i].x+range);
-        int y2 = min(bw.size().height, circles[i].y+range);
+        Point center(circles[i].cx, circles[i].cy);
+        // Width of one marker is 13 single rings (4 outer rings, center rings, 2x 2 ring-widths for clearance).
+        // the detected width in circles[i].z equals to the circles. to get a pixel estimate for the clearance
+        // we multiply it by
+        double marker_side = (circles[i].size/9.0)*13.0;
+        // Now we can calculate the hypothenuse of the square to find an area that encloses the
+        // complete marker for any rotation. We also add some 15% to prevent measurement errors.
+        int range = sqrt(2.0*(marker_side*marker_side))*1.15; // hypothenuse of circle + some extra 10%
+        
+        int x1 = max(0, circles[i].cx-range);
+        int y1 = max(0, circles[i].cy-range);
+        int x2 = min(bw.size().width, circles[i].cx+range);
+        int y2 = min(bw.size().height, circles[i].cy+range);
         Mat roi = bw(Range(y1, y2), Range(x1, x2));
         
         if (debug) {
+            for (int r=0; r<circles[i].rows.size(); r++) {
+                line(img, Point(0, circles[i].rows[r]), Point(bw.cols, circles[i].rows[r]), Scalar(30,70,250), 1, 1);
+            }
+            for (int c=0; c<circles[i].cols.size(); c++) {
+                line(img, Point(circles[i].cols[c], 0), Point(circles[i].cols[c], bw.rows), Scalar(250,70,30), 1, 1);
+            }
             rectangle(img, Point(x1,y1),  Point(x2,y2),  Scalar(180,30,220), 1, 1);
-            circle(img, center, circles[i].z, CV_RGB(0,255,255), 1);
+            circle(img, center, circles[i].size, CV_RGB(0,255,255), 1);
         }
         
         t0 = GetTimeMs64();
         // Try approximate corners in outline
         vector<Point2i> approx;
-        if (approximateCornersSlow(roi, Point(x1, y1), approx)) {
-            t_approx += (int)(GetTimeMs64() - t0);
-            t0 = GetTimeMs64();
-            vector<Point2f> refined = refineCorners(gray, scaleFactor, approx);
-            vector<Point2d> scene; // Marker corners in scene, order corresponding with model.
-            
-            // Can we associate the corners with the model?
-            if (sortCorners(bw, scaleFactor, refined, scene)) {
-                t_refine += (int)(GetTimeMs64() - t0);
-                // Can we detect the marker id?
-                int markerId = detectMarkerId(bw, scaleFactor, scene);
-                if (markerId > -1) {
-                    for (int midx = 0; midx < markers.size(); midx++) {
-                        // Do we have that marker in our
-                        if (markers.at(midx).markerId == markerId) {
-                            CircleMarker * marker = &markers.at(midx);
-                            t0 = GetTimeMs64();
-                            marker->reestimateMarker(scene, camera);
-                            t_estimate += (int)(GetTimeMs64() - t0);
-                            if (debug) drawMaker(*marker, camera, output);
-                        }
+        approximateCornersSlow(roi, Point(x1, y1), approx);
+        t_approx += (int)(GetTimeMs64() - t0);
+        
+        if (approx.size() != 4) break;
+        
+        vector<Point2f> refined = refineCorners(gray, scaleFactor, approx);
+        vector<Point2d> scene; // Marker corners in scene, order corresponding with model.
+        
+        t0 = GetTimeMs64();
+        // Can we associate the corners with the model?
+        bool foundRefined = sortCorners(bw, scaleFactor, refined, scene);
+        t_refine += (int)(GetTimeMs64() - t0);
+        if (foundRefined) {
+            // Can we detect the marker id? (this is still a stub/allways returns 0)
+            int markerId = detectMarkerId(bw, scaleFactor, scene);
+            if (markerId > -1) {
+                for (int midx = 0; midx < markers.size(); midx++) {
+                    // Do we have that marker in our
+                    if (markers.at(midx).markerId == markerId) {
+                        CircleMarker * marker = &markers.at(midx);
+                        t0 = GetTimeMs64();
+                        
+                        Size res = img.size();
+                        float calibScaleX = camera.width/res.width;
+                        float calibScaleY = camera.height/res.height;
+                        
+                        //for (int p = 0; p < scene.size(); p++) {
+                        //    scene[p].x = scene[p].x * calibScaleX;
+                        //    scene[p].x = scene[p].y * calibScaleY;
+                        //}
+                        
+                        marker->reestimateMarker(scene, camera);
+                        t_estimate += (int)(GetTimeMs64() - t0);
+                        if (debug) drawMaker(*marker, camera, output, calibScaleX, calibScaleY);
+                        break;
                     }
                 }
             }
@@ -141,22 +160,30 @@ void CircleMarker::findAndEstimate(Mat &img, Mat &output, bool debug, Camera &ca
 }
 
 // Slow implementation using built-in opencv functions
-bool CircleMarker::approximateCornersSlow(Mat & roi, Point offset, vector<Point2i> & approx) {
+void CircleMarker::approximateCornersSlow(Mat & roi, Point offset, vector<Point2i> & approx) {
     // Inside the roi, we walk the extreme outer contour
     vector< vector<Point> > contours;
     vector<Vec4i> hierarchy;
     findContours(roi, contours, hierarchy,
                  CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE, offset);
     
-    // If there are shapes inside, and if it is not too "noisy"...
-    if (contours.size() > 0 && contours.size() < 4) {
+    double max_area = 0;
+    
+    // If there any shapes inside (>0) and if it is not too "noisy" (<12)
+    if (contours.size() > 0 && contours.size() < 12) {
         for (int ci=0; ci < contours.size(); ci++) {
-            approxPolyDP(contours[ci], approx, 10, true); // small epsilon = detailed approx.size()
-            if (approx.size() == 4) return true; // this must be our square
+            vector<Point2i> _approx;
+            approxPolyDP(contours[ci], _approx, 10, true); // small epsilon = detailed approx.size()
+            // TODO: calculate area, return the contour with max(A) instead
+            if (_approx.size() == 4) {
+                double A = contourArea(_approx);
+                if (A > max_area) {
+                    max_area = A;
+                    approx = _approx;
+                }
+            }
         }
     }
-    
-    return false;
 }
 
 // Not implemented yet, using findContours +
@@ -191,7 +218,7 @@ vector<Point2f> CircleMarker::refineCorners(Mat & gray, float scaleFactor, vecto
     return refined;
 }
 
-void CircleMarker::drawMaker(CircleMarker & marker, Camera & camera, Mat & output) {
+void CircleMarker::drawMaker(CircleMarker & marker, Camera & camera, Mat & output, float calibScaleX, float calibScaleY) {
     // Draw reprojected marker & COS
     vector<Point3f> cosx; vector<Point2f> cosx_img;
     vector<Point3f> cosy; vector<Point2f> cosy_img;
@@ -212,6 +239,12 @@ void CircleMarker::drawMaker(CircleMarker & marker, Camera & camera, Mat & outpu
     projectPoints(cosx, marker.rvec, marker.tvec, camera.cameraMatrix, camera.distCoeffs, cosx_img);
     projectPoints(cosy, marker.rvec, marker.tvec, camera.cameraMatrix, camera.distCoeffs, cosy_img);
     projectPoints(cosz, marker.rvec, marker.tvec, camera.cameraMatrix, camera.distCoeffs, cosz_img);
+    
+    //for (int p = 0; p < scene_corners.size(); p++) {
+    //    scene_corners[p].x = scene_corners[p].x / calibScaleX;
+    //    scene_corners[p].x = scene_corners[p].y / calibScaleY;
+    //}
+    
     
     for (int c = 0; c<4; c++) {
         // Approximated corners
@@ -272,12 +305,17 @@ SuspectedCircleMarker::SuspectedCircleMarker(int x, int y, int s, bool h) {
     detected_as_horizontal = h;
     score_horizontal = 0;
     score_vertical = 0;
+    if (detected_as_horizontal) {
+        cols.push_back(x);
+    } else {
+        rows.push_back(y);
+    }
 }
 
 bool SuspectedCircleMarker::isClose(SuspectedCircleMarker & scm) {
     int tsize = (size + scm.size);
-    float ratio = (float) max(size, scm.size)/(float)tsize;
-    return ratio < 0.72f && abs(cx - scm.cx) < tsize/5 && abs(cy - scm.cy) < tsize/5;
+    //float ratio = (float) max(size, scm.size)/(float)tsize;
+    return abs(cx - scm.cx) < tsize/5 && abs(cy - scm.cy) < tsize/5;
 }
 
 bool SuspectedCircleMarker::tooClose(SuspectedCircleMarker & scm) {
@@ -286,11 +324,21 @@ bool SuspectedCircleMarker::tooClose(SuspectedCircleMarker & scm) {
 }
 
 void SuspectedCircleMarker::merge(SuspectedCircleMarker & scm) {
-    cx = (cx + scm.cx)/2;
-    cy = (cy + scm.cy)/2;
     size = max(size, scm.size);
-    if (scm.detected_as_horizontal) score_horizontal++;
-    else score_vertical++;
+    if (scm.detected_as_horizontal) {
+        cols.push_back(scm.cx);
+        score_horizontal++;
+    } else {
+        rows.push_back(scm.cy);
+        score_vertical++;
+    }
+    
+    int samples =(score_horizontal+score_vertical);
+    cx = ((cx * samples) + scm.cx ) / (samples + 1);
+    cy = ((cy * samples) + scm.cy ) / (samples + 1);
+    
+    //cx = (cx + scm.cx)/2;
+    //cy = (cy + scm.cy)/2;
 }
 
 Point3i SuspectedCircleMarker::export_point() {
@@ -301,7 +349,7 @@ int CircleMarker::detectMarkerId(Mat & img, double scale, vector<Point2d>& scene
     return 0;
 }
 
-void CircleMarker::searchNestedCircles(Mat & img, vector<Point3i> & circles) {
+void CircleMarker::searchNestedCircles(Mat & img, vector<SuspectedCircleMarker> & circles) {
     
     Mat dbg_search;
     cvtColor(img, dbg_search, CV_GRAY2BGR);
@@ -325,10 +373,11 @@ void CircleMarker::searchNestedCircles(Mat & img, vector<Point3i> & circles) {
     for (int b = 0; b < sus_markers.size(); b++) {
         SuspectedCircleMarker * bar = &sus_markers[b];
         circle(dbg_search, Point2i((int)bar->cx, (int)bar->cy), (int)bar->size, Scalar(0,0,255));
-        int range = (int)bar->size*2;
-        int x_offset = max(0, (int)bar->cx-range);
-        int y_offset = max(0, (int)bar->cy-range);
-        Mat roi_sus = img(Range(y_offset, min(size.height, (int)bar->cy+range)), Range(x_offset, min(size.width, (int)bar->cx+range)));
+        int range_y = (int)bar->size*2; // center must be ins
+        int range_x = (int)bar->size/4; // center must be ins
+        int x_offset = max(0, (int)bar->cx-range_x);
+        int y_offset = max(0, (int)bar->cy-range_y);
+        Mat roi_sus = img(Range(y_offset, min(size.height, (int)bar->cy+range_y)), Range(x_offset, min(size.width, (int)bar->cx+range_x)));
         for (int c = 0; c < roi_sus.cols; c++) {
             Mat rMat = roi_sus.col(c);
             _searchNestedCircles(rMat, c+x_offset, y_offset, sus_markers, false);
@@ -338,7 +387,7 @@ void CircleMarker::searchNestedCircles(Mat & img, vector<Point3i> & circles) {
     // Return only those with at least two vertical and two horizontal samples
     for (int b = 0; b < sus_markers.size(); b++) {
         if (sus_markers[b].score_horizontal > 1 && sus_markers[b].score_vertical > 1) {
-            circles.push_back(sus_markers[b].export_point());
+            circles.push_back(sus_markers[b]);
         }
     }
 }
@@ -357,8 +406,7 @@ void CircleMarker::searchNestedCircles(Mat & img, vector<Point3i> & circles) {
 //    Flop_N: 1
 //    NoFlop: 2
 //
-bool CircleMarker::_searchNestedCircles(Mat & row, int offset_x, int offset_y, vector<SuspectedCircleMarker> & bars, bool horizontal) {
-    bool res = false;
+void CircleMarker::_searchNestedCircles(Mat & row, int offset_x, int offset_y, vector<SuspectedCircleMarker> & bars, bool horizontal) {
     float max_ratio = 0.72f;
     uchar marker_flips = 8;
 
@@ -369,12 +417,12 @@ bool CircleMarker::_searchNestedCircles(Mat & row, int offset_x, int offset_y, v
     ushort curr = 0;
     ushort prev = 0;
 
-    bool black = (uchar)row.at<uchar>(0, 0) == 255;
+    bool black = (uchar)row.at<uchar>(0) == 255; // ==255 instead of ==0 because we have inverted img
     bool white = !black;
     
     int end = horizontal ? row.size().width : row.size().height;
     for (int i = 0; i < end; i++) {
-        bool next_white = horizontal ? (uchar)row.at<uchar>(0, i) == 0 : (uchar)row.at<uchar>(i, 0) == 0;
+        bool next_white = (uchar)row.at<uchar>(i) == 0;
 
         if (next_white == white) curr++;
         
@@ -386,7 +434,6 @@ bool CircleMarker::_searchNestedCircles(Mat & row, int offset_x, int offset_y, v
         if (state == 1) { // Read "leading" blacks
             if (white) {
                 state = 2;
-                // cout << "2A";
                 prev = curr;
                 curr = 1;
                 possible_start = i;
@@ -395,12 +442,11 @@ bool CircleMarker::_searchNestedCircles(Mat & row, int offset_x, int offset_y, v
             if (black) {
                 if (curr < prev) {
                     state = 3;
-                    // cout << "3A";
                     flips = 1;
                 } else {
                     state = 1;
-                    // cout << "1A";
                 }
+                
                 prev = curr;
                 curr = 1;
             }
@@ -410,71 +456,100 @@ bool CircleMarker::_searchNestedCircles(Mat & row, int offset_x, int offset_y, v
                 curr = 1;
                 if (ratio < max_ratio) {
                     state = 4;
-                    // cout << "4A";
                     flips++;
                 } else {
                     state = 2;
-                    // cout << "2B";
                 }
             } else if (curr > prev && ratio >= max_ratio) {
                 state = 1;
-                // cout << "1B";
             }
         } else if (state == 4) { // Read white ring
             if (black) {
                 definite_end = i-1;
-
                 prev = curr;
                 curr = 1;
                 if (ratio < max_ratio) {
                     if (flips == marker_flips) {
-                        res = true;
-                        int size = (definite_end - possible_start)/2;
-                        int center = possible_start+size;
-                        SuspectedCircleMarker current(
-                                horizontal ? center+offset_x : offset_x,
-                                horizontal ? offset_y : center+offset_y,
-                                size, horizontal);
-                        
-                        bool found = false;
-                        int filter = -1;
-                        // cout << "|C: " << current.x << "," << current.y << "|" << endl;
-                        for (int b = 0; b < bars.size(); b++) {
-                            SuspectedCircleMarker * other = &bars[b];
-                            if (other->isClose(current)) {
-                                other->merge(current);
-                                found = true;
-                                break;
-                            } else if (other->tooClose(current)) {
-                                filter = b;
-                                break;
-                            }
-                        }
-                        if (horizontal) {
-                            if (!found) {
-                                bars.push_back(current);
-                            }
-                            
-                            if (filter > -1) {
-                                bars.erase(bars.begin()+filter);
-                            }
-                        }
+                        state = 5;
                     } else {
                         state = 3;
-                        // cout << "3B";
                         flips++;
                     }
                 } else {
                     state = 1;
-                    // cout << "1C";
                 }
             } else if (curr > prev && ratio >= max_ratio) {
                 state = 2;
-                //cout << "2C";
+            }
+        } else if (state == 5) {
+            if (white) {
+                if (curr < prev) {
+                    state = 1;
+                } else {
+                    int size = (definite_end - possible_start)/2;
+                    int center = possible_start+size;
+                    SuspectedCircleMarker current(
+                                                  horizontal ? center+offset_x : offset_x,
+                                                  horizontal ? offset_y : center+offset_y,
+                                                  size, horizontal);
+                    
+                    bool found = false;
+                    int filter = -1;
+                    for (int b = 0; b < bars.size(); b++) {
+                        SuspectedCircleMarker * other = &bars[b];
+                        if (other->isClose(current)) {
+                            other->merge(current);
+                            found = true;
+                            break;
+                        } else if (other->tooClose(current)) {
+                            filter = b;
+                            break;
+                        }
+                    }
+                    
+                    // We only add new detected circles in horizontal search
+                    if (horizontal) {
+                        if (!found) { // ...if none was found closeby
+                            bars.push_back(current);
+                        }
+                        
+                        // ...and if it was close, but not close enough, to an actual one circle...
+                        if (filter > -1) { // It is probably noise, and we remove it
+                            bars.erase(bars.begin()+filter);
+                        }
+                    }
+                }
+            } else if (curr > prev && ratio >= max_ratio) {
+                state = 1;
             }
         }
-        //if (curr == 1)
-        //    cout << (white ? " W " : " B ");
     }
-    return res;
+}
+
+const double PI = 3.14159265358979323846264;
+
+bool closeEnough(const float& a, const double& b, const double& epsilon = numeric_limits<double>::epsilon()) {
+    return (epsilon > abs(a - b));
+}
+
+double rad2deg(double d) {
+    return d * (180.0 / PI);
+}
+
+void eulerAngles(Mat& R, Mat& res) {
+    //check for gimbal lock
+    if (closeEnough(R.at<double>(2,0), -1.0)) {
+        res.at<double>(0) = 0; //gimbal lock, value of x doesn't matter
+        res.at<double>(1) = PI / 2;
+        res.at<double>(2) = atan2(R.at<double>(0,1), R.at<double>(0,2));
+    } else if (closeEnough(R.at<double>(2,0), 1.0)) {
+        res.at<double>(0) = 0;
+        res.at<double>(1) = -PI / 2;
+        res.at<double>(2) = atan2(-R.at<double>(0,1), -R.at<double>(0,2));
+    } else {
+        float x1 =  -asin(R.at<double>(2,0));
+        res.at<double>(0) = x1;
+        res.at<double>(1) = atan2(R.at<double>(2,1) / cos(x1), R.at<double>(2,2) / cos(x1));
+        res.at<double>(2) = atan2(R.at<double>(1,0) / cos(x1), R.at<double>(0,0) / cos(x1));
+    }
 }

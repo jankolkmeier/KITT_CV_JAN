@@ -10,6 +10,8 @@ Camera::Camera(string calib_name) {
     if (fs.isOpened()) {
         fs["camera_matrix"] >> cameraMatrix;
         fs["distortion_coefficients"] >> distCoeffs;
+        fs["image_width"] >> width;
+        fs["image_height"] >> height;
     } else {
         cout << "Cannot open calibration file" << endl;
     }

@@ -50,6 +50,7 @@ static void help()
         "     -w <board_width>         # the number of inner corners per one of board dimension\n"
         "     -h <board_height>        # the number of inner corners per another board dimension\n"
         "     [-pt <pattern>]          # the type of pattern: chessboard or circles' grid\n"
+        "     [-g]                     # use GUI\n"
         "     [-n <number_of_frames>]  # the number of frames to use for calibration\n"
         "                              # (if not specified, it will be set to the number\n"
         "                              #  of board views actually available)\n"
@@ -301,6 +302,8 @@ int main( int argc, char** argv )
     const char* outputFilename = "out_camera_data.yml";
     const char* inputFilename = 0;
 
+    bool firstImage = true;
+    
     int i, nframes = 10;
     int captureWidth = -1;
     int captureHeight = -1;
@@ -312,6 +315,7 @@ int main( int argc, char** argv )
     bool showUndistorted = false;
     bool videofile = false;
     bool saveOnly = false;
+    bool useGui = false;
     int delay = 1000;
     clock_t prevTimestamp = 0;
     int mode = DETECTION;
@@ -409,6 +413,11 @@ int main( int argc, char** argv )
         {
             saveOnly = true;
         }
+        else if( strcmp( s, "-g" ) == 0 )
+        {
+            useGui = true;
+            cout << "using gui" << endl;
+        }
         else if( strcmp( s, "-V" ) == 0 )
         {
             videofile = true;
@@ -449,17 +458,18 @@ int main( int argc, char** argv )
         nframes = (int)imageList.size();
 
     if( capture.isOpened() ) {
+        cout << "Opened camera" << endl;
         if (captureHeight > 10 && captureWidth > 10) {
             capture.set(CV_CAP_PROP_FRAME_WIDTH,  captureWidth);
             capture.set(CV_CAP_PROP_FRAME_HEIGHT, captureHeight);
             cout << "Setting capture resolution to " << captureWidth << "x" << captureHeight << endl;
         }
-        
-        cout << "Capturing will start in a few moments..." << endl;
+        if (!useGui) cout << "Capturing will start in a few moments..." << endl;
+        else cout << "Press 'g' to start, press ESC to quit, press 'u' to undistort" << endl;
 
     }
 
-    //namedWindow( "Image View", 1 );
+    if (useGui) namedWindow( "Image View", 1 );
 
     for(i = 0;;i++)
     {
@@ -470,7 +480,10 @@ int main( int argc, char** argv )
         {
             Mat view0;
             capture >> view0;
-            cout << view0.rows << "x" << view0.cols << endl;
+            if (firstImage) {
+                cout << "Actual capture size: " << view0.cols << "x" << view0.rows << endl;
+                firstImage = false;
+            }
             view0.copyTo(view);
         }
         else if( i < (int)imageList.size() )
@@ -549,12 +562,16 @@ int main( int argc, char** argv )
                 msg = format( "%d/%d", (int)imagePoints.size(), nframes );
         }
 
-        cout << msg << endl;
-        //printf(msg)
-        //putText( view, msg, textOrigin, 1, 1,
-        //       mode != CALIBRATED ? Scalar(0,0,255) : Scalar(0,255,0));
+        if (useGui && !saveOnly) {
+            putText( view, msg, textOrigin, 1, 1,
+                     mode != CALIBRATED ? Scalar(0,0,255) : Scalar(0,255,0));
+        }
+        
+        if (!useGui) {
+            cout << msg << endl;
+        }
 
-        if( blink )
+        if( useGui && blink )
             bitwise_not(view, view);
 
         if( mode == CALIBRATED && undistortImage )
@@ -562,22 +579,25 @@ int main( int argc, char** argv )
             Mat temp = view.clone();
             undistort(temp, view, cameraMatrix, distCoeffs);
         }
-
-        //imshow("Image View", view);
-        //int key = 0xff & waitKey(capture.isOpened() ? 50 : 500);
-
-        //if( (key & 255) == 27 ) // Escape
-        //    break;
-
-        //if( key == 'u' && mode == CALIBRATED )
-        //    undistortImage = !undistortImage;
         
-        if(!started && capture.isOpened() ) {
-        //if( capture.isOpened() && key == 'g' ) {
+        int key = -1;
+        
+        if (useGui) {
+            imshow("Image View", view);
+            key = 0xff & waitKey(capture.isOpened() ? 50 : 500);
+
+            if( (key & 255) == 27 ) // Escape
+                break;
+
+            if( key == 'u' && mode == CALIBRATED )
+                undistortImage = !undistortImage;
+        }
+        
+        if( capture.isOpened() && ((useGui && key == 'g') || (!useGui && !started)) ) {
             mode = CAPTURING;
             imagePoints.clear();
             started = true;
-            //printf("Started capturing %d", 0);
+            if (useGui) printf("Started capturing %d", 0);
         }
 
         if( mode == CAPTURING && imagePoints.size() >= (unsigned)nframes )
@@ -609,10 +629,12 @@ int main( int argc, char** argv )
                 continue;
             undistort( view, rview, cameraMatrix, distCoeffs, cameraMatrix );
             remap(view, rview, map1, map2, INTER_LINEAR);
-            //imshow("Image View", rview);
-            //int c = 0xff & waitKey();
-            //if( (c & 255) == 27 || c == 'q' || c == 'Q' )
-            //    break;
+            if (useGui) {
+                imshow("Image View", rview);
+                int c = 0xff & waitKey();
+                if( (c & 255) == 27 || c == 'q' || c == 'Q' )
+                    break;
+            }
         }
     }
 
