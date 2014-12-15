@@ -88,10 +88,10 @@ int main(int argc, char* argv[]) {
         if (good_matches.size() < 4) continue;
         
         Mat img_matches;
-        /*drawMatches(img_object, keypoints_object, img_scene, keypoints_scene,
+        drawMatches(img_object, keypoints_object, img_scene, keypoints_scene,
                     good_matches, img_matches, Scalar::all(-1), Scalar::all(-1),
                     vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
-        */
+        
         std::vector<Point2f> obj;
         std::vector<Point2f> scene;
         int m_size =  good_matches.size();
@@ -119,11 +119,11 @@ int main(int argc, char* argv[]) {
         line(img_matches, scene_corners[2] + offset, scene_corners[3] + offset, Scalar(0, 255, 0), 4);
         line(img_matches, scene_corners[3] + offset, scene_corners[0] + offset, Scalar(0, 255, 0), 4);
         
-        /*
+        
         imshow("Output", img_matches);
         if (waitKey(10) == 'q') {
             break;
-        }*/
+        }
         
         frames_total++;
         t0 = GetTimeMs64();
