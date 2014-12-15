@@ -14,19 +14,20 @@ int main(int argc, char* argv[]) {
     int thresh = 75;
     double markerSize = 25.0;
     
+    Camera camera(calibration);
     VideoCapture cap(camera_name);
     if(!cap.isOpened()) {
         cout << "Failed to open capture device." << endl;
         return -1;
+    } else {
+        cap.set(CV_CAP_PROP_FRAME_WIDTH, camera.width);
+        cap.set(CV_CAP_PROP_FRAME_HEIGHT, camera.height);
     }
     
-    Camera camera(calibration);
     vector<CircleMarker> markers;
     markers.push_back(CircleMarker(0, markerSize));
     CircleMarker * marker0 = &(markers.at(0));
 
-    cap.set(CV_CAP_PROP_FRAME_WIDTH, camera.width);
-    cap.set(CV_CAP_PROP_FRAME_HEIGHT, camera.height);
     
     cout << "Using camera " << camera_name << " with calibration file " << calibration;
     cout << " and gui " << (gui>0 ? "enabled" : "disabled") << endl;

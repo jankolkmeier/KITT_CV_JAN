@@ -16,6 +16,9 @@ file(GLOB HEADERS_CALIB ${PROJECT_SOURCE_DIR}/calibration/headers/*.h)
 file(GLOB SRC_ARUCO ${PROJECT_SOURCE_DIR}/aruco_test/src/*.cpp)
 file(GLOB HEADERS_ARUCO ${PROJECT_SOURCE_DIR}/aruco_test/headers/*.h)     
 
+file(GLOB SRC_FEATURE ${PROJECT_SOURCE_DIR}/feature_test/src/*.cpp)
+file(GLOB HEADERS_FEATURE ${PROJECT_SOURCE_DIR}/feature_test/headers/*.h)     
+
 include_directories(${PROJECT_SOURCE_DIR}/kcvj/src)      
 include_directories(${PROJECT_SOURCE_DIR}/kcvj/headers)      
 include_directories(${PROJECT_SOURCE_DIR}/kcvj_demo/src)      
@@ -30,6 +33,9 @@ include_directories(${PROJECT_SOURCE_DIR}/calibration/headers)
 
 include_directories(${PROJECT_SOURCE_DIR}/aruco_test/src)      
 include_directories(${PROJECT_SOURCE_DIR}/aruco_test/headers)      
+
+include_directories(${PROJECT_SOURCE_DIR}/feature_test/src)      
+include_directories(${PROJECT_SOURCE_DIR}/feature_test/headers)      
 
 find_package(OpenCV REQUIRED)
 
@@ -49,6 +55,9 @@ target_link_libraries(calibration ${OpenCV_LIBS})
 
 add_executable(aruco_test ${SRC_ARUCO} ${HEADERS_ARUCO})
 target_link_libraries(aruco_test ${OpenCV_LIBS} kcvj)
+
+add_executable(feature_test ${SRC_FEATURE} ${HEADERS_FEATURE})
+target_link_libraries(feature_test ${OpenCV_LIBS} kcvj)
 
 #SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -mfpu=neon")
 
