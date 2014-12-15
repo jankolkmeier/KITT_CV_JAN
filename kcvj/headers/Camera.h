@@ -6,9 +6,14 @@ using namespace std;
 
 class Camera {
 public:
-    Camera(Mat cm, Mat dc);
+    Camera(Mat& cm, Mat& dc);
+    Camera(Mat& cm, Mat& dc, Mat& _rig_t, Mat& _rig_R);
     Camera(string calib_name);
-    Mat cameraMatrix, distCoeffs;
+    Camera(string calib_name, Mat& _rig_t, Mat& _rig_R);
+    Mat cameraMatrix, distCoeffs, rig_R, rig_t;
     int width;
     int height;
+private:
+    void setup(string calib_name, Mat& _rig_t, Mat& _rig_R);
+    void setup(Mat& cm, Mat& dc, Mat& _rig_t, Mat& _rig_R);
 };

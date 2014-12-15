@@ -25,7 +25,6 @@ void OutputLine(ofstream & o) {
     o << endl;
 }
 
-
 int run() {
     // TODO: http://docs.opencv.org/modules/video/doc/motion_analysis_and_object_tracking.html#kalmanfilter-kalmanfilter
     //       http://opencvexamples.blogspot.com/2014/01/kalman-filter-implementation-tracking.html
@@ -101,9 +100,9 @@ int run() {
 
         o_detected = (markers.at(0).detected ? 1 : 0);
         o_frame = frame;
-        o_x = markers.at(0).t.at<double>(0);
-        o_y = markers.at(0).t.at<double>(1);
-        o_z = markers.at(0).t.at<double>(2);
+        o_x = markers.at(0).t_cam.at<double>(0);
+        o_y = markers.at(0).t_cam.at<double>(1);
+        o_z = markers.at(0).t_cam.at<double>(2);
         
         OutputLine(of);
 
@@ -135,11 +134,26 @@ int run() {
             char k = waitKey(10);
             if (k == ' ') autoproceed = !autoproceed;
             if (k == 'q') return 0;
+            
             if (k == 'b') {
                 frame--;
                 autoproceed = false;
                 break;
             }
+            
+            if (k == 'o') {
+                // Set origin
+                Mat t_offset = markers.at(0).t_cam.clone();
+                markers.at(0).setWorldPose(t_offset, markers.at(0).R_marker);
+            }
+            
+            if (k == 'r') {
+                // Reset origin
+                Mat _zero_t = Mat(3, 1, DataType<double>::type);
+                Mat _identity_R = Mat::eye(3, 3, DataType<double>::type);
+                markers.at(0).setWorldPose(_zero_t, _identity_R);
+            }
+            
             if (k == 'n') {
                 frame++;
                 autoproceed = false;

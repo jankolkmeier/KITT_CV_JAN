@@ -27,7 +27,6 @@ int main(int argc, char* argv[]) {
 
     cap.set(CV_CAP_PROP_FRAME_WIDTH, camera.width);
     cap.set(CV_CAP_PROP_FRAME_HEIGHT, camera.height);
-    cap.set(CV_CAP_PROP_FPS, 10);
     
     cout << "Using camera " << camera_name << " with calibration file " << calibration;
     cout << " and gui " << (gui>0 ? "enabled" : "disabled") << endl;
