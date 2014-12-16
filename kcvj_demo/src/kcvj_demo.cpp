@@ -1,5 +1,5 @@
-#define KCVJ_GUI 1
-#define KCVJ_REMOTE 0
+#define KCVJ_GUI 0
+#define KCVJ_REMOTE 1
 #define KCVJ_PROFILING 1
 
 #include "kcvj_demo.h"
@@ -42,6 +42,8 @@ int run() {
     
     Camera camera(_calibrationFile);
     if (camera.cameraMatrix.empty()) return -1;
+    
+    cout << "Calibration file: " << _calibrationFile << endl;
     
     Mat input_img;
     bool autoproceed = true;
@@ -160,9 +162,8 @@ int run() {
                 break;
             }
         } while (!autoproceed);
-        #else
-        if (frame >= _frameStop && _frameStop != 0) return 1;
         #endif
+        if (frame >= _frameStop && _frameStop != 0) return 1;
         if (autoproceed) frame++;
     }
     
