@@ -1,5 +1,6 @@
 #include "CircleMarker.h"
 
+
 CircleMarker::CircleMarker(int markerId, double size) {
     Mat _zero_t = Mat(3, 1, DataType<double>::type);
     Mat _identity_R = Mat::eye(3, 3, DataType<double>::type);
@@ -90,7 +91,7 @@ int t_refine = 0;
 int t_estimate = 0;
 
 void WriteCircleMarkerProfileHeader(ofstream & o) {
-    o << "t_total,t_prepare,t_search,t_approx,t_refine,t_estimate";
+    o << "t_total,p,t_search,t_approx,t_refine,t_estimate";
 }
 
 void WriteCircleMarkerProfileLine(ofstream & o) {
@@ -164,6 +165,7 @@ void CircleMarker::findAndEstimate(Mat &img, Mat &output, bool debug, Camera &ca
         
         vector<Point2f> refined = refineCorners(gray, scaleFactor, approx);
         vector<Point2d> scene; // Marker corners in scene, order corresponding with model.
+        
         
         t0 = GetTimeMs64();
         // Can we associate the corners with the model?
@@ -245,18 +247,18 @@ bool CircleMarker::approximateCornersFast(Mat & roi, Point offset, vector<Point2
 
 // Approx = 4 corners, to be refined in gray img, which is bigger by scaleFactor
 vector<Point2f> CircleMarker::refineCorners(Mat & gray, float scaleFactor, vector<Point2i> & approx) {
-    vector<Point2f> refined;
-    Mat(approx).copyTo(refined);
+    vector<Point2f> _refined;
+    Mat(approx).copyTo(_refined);
     
-    for (int c = 0; c < refined.size(); c++) {
-        refined[c].x = refined[c].x/scaleFactor;
-        refined[c].y = refined[c].y/scaleFactor;
+    for (int c = 0; c < _refined.size(); c++) {
+        _refined[c].x = _refined[c].x/scaleFactor;
+        _refined[c].y = _refined[c].y/scaleFactor;
     }
     
-    TermCriteria criteria = TermCriteria( CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 50, 0.001 );
-    cornerSubPix(gray, refined, Size(6,6), Size(-1,-1), criteria);
+    TermCriteria criteria = TermCriteria( CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 80, 0.001 );
+    cornerSubPix(gray, _refined, Size(6,6), Size(-1,-1), criteria);
     
-    return refined;
+    return _refined;
 }
 
 void CircleMarker::drawMaker(CircleMarker & marker, Camera & camera, Mat & output, float calibScaleX, float calibScaleY) {

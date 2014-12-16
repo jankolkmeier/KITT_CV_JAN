@@ -1,5 +1,5 @@
 #define KCVJ_GUI 1
-#define KCVJ_REMOTE 1
+#define KCVJ_REMOTE 0
 #define KCVJ_PROFILING 1
 
 #include "kcvj_demo.h"
@@ -105,7 +105,7 @@ int run() {
         o_z = markers.at(0).t_cam.at<double>(2);
         
         OutputLine(of);
-
+        
         for (int m = 0; m < markers.size(); m++) {
             if (markers.at(m).detected) {
                 cout << markers.at(m).serialize() << endl;

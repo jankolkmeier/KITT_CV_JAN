@@ -14,6 +14,7 @@ void WriteCircleMarkerProfileLine(ofstream & o);
 void eulerAngles(Mat& R, Mat& r);
 double rad2deg(double d);
 
+
 class SuspectedCircleMarker {
 public:
     int cx;
@@ -67,7 +68,6 @@ public:
     static vector<Point2f> refineCorners(Mat & gray, float scaleFactor, vector<Point2i> & approx);
     static bool            sortCorners(Mat & img, double scale, vector<Point2f>& refined, vector<Point2d>& scene);
     static int             detectMarkerId(Mat & img, double scale, vector<Point2d>& scene);
-    
 private:
     static void            _searchNestedCircles(Mat & row, int offset_x, int offset_y, vector<SuspectedCircleMarker> & bars, bool horizontal);
     void setup(int markerId, double size, Mat &_world_t, Mat &_world_R);
