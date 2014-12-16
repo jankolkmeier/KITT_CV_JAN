@@ -72,12 +72,12 @@ string CircleMarker::serialize() {
     ostringstream buf;
     
     Mat r_euler(3, 1, DataType<double>::type);
-    //eulerAngles(R_cam, r_euler);
-    //buf << "T: " << t_cam.at<double>(0) << " " << t_cam.at<double>(1) << " " << t_cam.at<double>(2) << "\n";
-    //buf << "R: " << rad2deg(r_euler.at<double>(0)) << " " << rad2deg(r_euler.at<double>(1)) << " " << rad2deg(r_euler.at<double>(2));
     
-    eulerAngles(R_camera_world, r_euler);
-    buf << "T: " << t_camera_world.at<double>(0) << " " << t_camera_world.at<double>(1) << " " << t_camera_world.at<double>(2) << "\n";
+    //eulerAngles(R_camera_world, r_euler);
+    //buf << "T: " << t_camera_world.at<double>(0) << " " << t_camera_world.at<double>(1) << " " << t_camera_world.at<double>(2) << "\n";
+    //buf << "R: " << rad2deg(r_euler.at<double>(0)) << " " << rad2deg(r_euler.at<double>(1)) << " " << rad2deg(r_euler.at<double>(2));
+    eulerAngles(R_cam, r_euler);
+    buf << "T: " << t_cam.at<double>(0) << " " << t_cam.at<double>(1) << " " << t_cam.at<double>(2) << "\n";
     buf << "R: " << rad2deg(r_euler.at<double>(0)) << " " << rad2deg(r_euler.at<double>(1)) << " " << rad2deg(r_euler.at<double>(2));
     
     return buf.str();
