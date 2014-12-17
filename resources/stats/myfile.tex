@@ -1,0 +1,48 @@
+% This file was created by matlab2tikz v0.4.7 running on MATLAB 8.2.
+% Copyright (c) 2008--2014, Nico Schlömer <nico.schloemer@gmail.com>
+% All rights reserved.
+% Minimal pgfplots version: 1.9
+% 
+% The latest updates can be retrieved from
+%   http://www.mathworks.com/matlabcentral/fileexchange/22022-matlab2tikz
+% where you can also make suggestions and rate matlab2tikz.
+% 
+%
+% defining custom colors
+\definecolor{mycolor1}{rgb}{0.87451,0.43922,0.18431}%
+\definecolor{mycolor2}{rgb}{0.38431,0.59608,0.78039}%
+%
+\begin{tikzpicture}
+
+\begin{axis}[%
+width=6.7328125in,
+height=3.24302083333333in,
+scale only axis,
+xmin=0.5,
+xmax=2.5,
+xtick={1,2},
+xticklabels={{NonTouching},{Touching}},
+ymin=2,
+ymax=6,
+ylabel={Score: Integrity},
+title={Integrety Scores by touch receptivity},
+axis x line*=bottom,
+axis y line*=left,
+legend style={at={(0.5,0.97)},anchor=north,draw=black,fill=white,legend cell align=left}
+]
+\addplot [color=mycolor1,solid]
+ plot [error bars/.cd, y dir = both, y explicit]
+ table[row sep=crcr, y error plus index=2, y error minus index=3]{1	4.1818	0.33733	0.33733\\
+2	4.1688	0.43512	0.43512\\
+};
+\addlegendentry{Avoidant};
+
+\addplot [color=mycolor2,solid]
+ plot [error bars/.cd, y dir = both, y explicit]
+ table[row sep=crcr, y error plus index=2, y error minus index=3]{1	4.4571	0.415795	0.415795\\
+2	4.7619	0.335755	0.335755\\
+};
+\addlegendentry{Receptive};
+
+\end{axis}
+\end{tikzpicture}%

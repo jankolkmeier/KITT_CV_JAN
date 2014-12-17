@@ -15,7 +15,6 @@ RemoteControl::RemoteControl(int port, string _settingsFile) {
 
     running = true;
 
-#if KCVJ_REMOTE==1
     slen = sizeof(si_other);
     if ((listenSock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
         die("socket", 1);
@@ -35,7 +34,6 @@ RemoteControl::RemoteControl(int port, string _settingsFile) {
     if (pthread_create(&thread, NULL, RemoteControl::listen, this)) {
         die("Failed to create thread.", 1);
     }
-#endif
 }
 
 void RemoteControl::setDebugImage(cv::Mat &img) {

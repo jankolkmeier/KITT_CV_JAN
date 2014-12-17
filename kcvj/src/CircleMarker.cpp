@@ -91,7 +91,7 @@ int t_refine = 0;
 int t_estimate = 0;
 
 void WriteCircleMarkerProfileHeader(ofstream & o) {
-    o << "t_total,p,t_search,t_approx,t_refine,t_estimate";
+    o << "t_total,t_prepare,t_search,t_approx,t_refine,t_estimate";
 }
 
 void WriteCircleMarkerProfileLine(ofstream & o) {
@@ -159,9 +159,20 @@ void CircleMarker::findAndEstimate(Mat &img, Mat &output, bool debug, Camera &ca
         // Try approximate corners in outline
         vector<Point2i> approx;
         approximateCornersSlow(roi, Point(x1, y1), approx);
+        
+        
         t_approx += (int)(GetTimeMs64() - t0);
         
         if (approx.size() != 4) break;
+        
+        if (debug) {
+            for (int c = 0; c < approx.size(); c++) {
+                circle(output, approx[c], 5, Scalar(250,220,40));
+                double x = approx[c].x/scaleFactor;
+                double y = approx[c].y/scaleFactor;
+                circle(output, Point2d(x, y), 5, Scalar(250,220,40));
+            }
+        }
         
         vector<Point2f> refined = refineCorners(gray, scaleFactor, approx);
         vector<Point2d> scene; // Marker corners in scene, order corresponding with model.
@@ -292,7 +303,7 @@ void CircleMarker::drawMaker(CircleMarker & marker, Camera & camera, Mat & outpu
     for (int c = 0; c<4; c++) {
         // Approximated corners
         //circle(output, approx[c], 5, cornerColors[c]);
-        circle(output, scene_corners[c], 5, cornerColors[c]);
+        circle(output, scene_corners[c], 3, cornerColors[c]);
         
         // Reproject corners with found translation; connect with lines
         line(output, scene_corners[c], scene_corners[(c+1)%4], Scalar(255, 0, 255), 1);
