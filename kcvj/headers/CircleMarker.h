@@ -57,7 +57,7 @@ public:
     
     void setWorldPose(Mat &t, Mat &R);
     string serialize();
-    static void findAndEstimate(Mat &img, Mat &output, bool debug, Camera &camera, vector<CircleMarker>& previous, double scaleFactor, int tr);
+    static void findAndEstimate(Mat &img, Mat &output, bool gui, Camera &camera, vector<CircleMarker>& previous, double scaleFactor, int tr);
     vector<Point3d> model;
     bool detected;
     void estimateMarkerPose(vector<Point2d> & scene, Camera & camera);

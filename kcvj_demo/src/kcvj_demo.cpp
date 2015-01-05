@@ -1,36 +1,6 @@
-#define KCVJ_GUI 0
-#define KCVJ_REMOTE 1
-#define KCVJ_PROFILING 1
-
 #include "kcvj_demo.h"
 
-void OutputHeader(ofstream & o) {
-    o << "t,frame,detected,x,y,z,t_grab,";
-    WriteCircleMarkerProfileHeader(o);
-    o << endl;
-}
-
-int o_frame = 0;
-int o_detected = 0;
-double o_x, o_y, o_z = 0;
-int t_grab = 0;
-int64 time_start;
-
-ofstream of;
-
-void OutputLine(ofstream & o) {
-    int o_t = (int)(GetTimeMs64() - time_start);
-    o << o_t << "," << o_frame << "," << o_detected << "," << o_x << "," << o_y << "," << o_z << "," << t_grab << ",";
-    WriteCircleMarkerProfileLine(o);
-    o << endl;
-}
-
 int run() {
-    // TODO: http://docs.opencv.org/modules/video/doc/motion_analysis_and_object_tracking.html#kalmanfilter-kalmanfilter
-    //       http://opencvexamples.blogspot.com/2014/01/kalman-filter-implementation-tracking.html
-    //KalmanFilter KF_ROT(?, 3, ?0);
-    //KalmanFilter KF_POS(?, 3, ?0);
-    
     of.open(_outFile.c_str());
     OutputHeader(of);
     
@@ -97,9 +67,8 @@ int run() {
 
         t_grab = (int)(GetTimeMs64() - t0);
 
+        CircleMarker::findAndEstimate(input_img, output, _gui, camera, markers, _searchScale, _threshold);
         
-        CircleMarker::findAndEstimate(input_img, output, _debug, camera, markers, _searchScale, _threshold);
-
         o_detected = (markers.at(0).detected ? 1 : 0);
         o_frame = frame;
         o_x = markers.at(0).t_cam.at<double>(0);
@@ -118,7 +87,7 @@ int run() {
             }
         }
 
-        if (_debug) {
+        if (_gui || _debug) {
             if (!ctrl->imageSet) {
                 reduceImage(output, reduced, _scale);
                 ctrl->setDebugImage(reduced);
@@ -128,41 +97,41 @@ int run() {
                 ctrl->image_requested = 2;
                 pthread_mutex_unlock(&(ctrl->mutex));
             }
+            
+            if (_gui) {
+                imshow("Output", output);
+                do {
+                    char k = waitKey(10);
+                    if (k == ' ') autoproceed = !autoproceed;
+                    if (k == 'q') return 0;
+                    
+                    if (k == 'b') {
+                        frame--;
+                        autoproceed = false;
+                        break;
+                    }
+                    
+                    if (k == 'o') {
+                        // Set origin
+                        Mat t_offset = markers.at(0).t_cam.clone();
+                        markers.at(0).setWorldPose(t_offset, markers.at(0).R_marker);
+                    }
+                    
+                    if (k == 'r') {
+                        // Reset origin
+                        Mat _zero_t = Mat(3, 1, DataType<double>::type);
+                        Mat _identity_R = Mat::eye(3, 3, DataType<double>::type);
+                        markers.at(0).setWorldPose(_zero_t, _identity_R);
+                    }
+                    
+                    if (k == 'n') {
+                        frame++;
+                        autoproceed = false;
+                        break;
+                    }
+                } while (!autoproceed);
+            }
         }
-        
-        #if (KCVJ_GUI == 1)
-        imshow("Output", output);
-        do {
-            char k = waitKey(10);
-            if (k == ' ') autoproceed = !autoproceed;
-            if (k == 'q') return 0;
-            
-            if (k == 'b') {
-                frame--;
-                autoproceed = false;
-                break;
-            }
-            
-            if (k == 'o') {
-                // Set origin
-                Mat t_offset = markers.at(0).t_cam.clone();
-                markers.at(0).setWorldPose(t_offset, markers.at(0).R_marker);
-            }
-            
-            if (k == 'r') {
-                // Reset origin
-                Mat _zero_t = Mat(3, 1, DataType<double>::type);
-                Mat _identity_R = Mat::eye(3, 3, DataType<double>::type);
-                markers.at(0).setWorldPose(_zero_t, _identity_R);
-            }
-            
-            if (k == 'n') {
-                frame++;
-                autoproceed = false;
-                break;
-            }
-        } while (!autoproceed);
-        #endif
         if (frame >= _frameStop && _frameStop != 0) return 1;
         if (autoproceed) frame++;
     }
@@ -170,8 +139,8 @@ int run() {
     return 0;
 }
 
+// Init settings
 int main(int argc, char* argv[]) {
-    
     if (argc == 1) {
         cout << "Using default port (" << port << ") and settings file (";
         cout <<  settingsFile << ")" << endl;
@@ -185,10 +154,13 @@ int main(int argc, char* argv[]) {
        return -1;
     }
     
+    
+    // Init remote control...
     ctrl = new RemoteControl(port, settingsFile);
     
+    
+    // ...and settigns callbacks
     ctrl->settings->add("translation", &paramTranslation, false);
-
     ctrl->settings->add("sourceType", &paramSourceType, true);
     ctrl->settings->add("sourceName", &paramSourceName, true);
     ctrl->settings->add("searchScale", &paramSearchScale, true);
@@ -210,13 +182,18 @@ int main(int argc, char* argv[]) {
     ctrl->settings->add("flip", &paramFlip, true);
     ctrl->settings->add("scale", &paramScale, true);
     ctrl->settings->add("threshold", &paramThreshold, true);
+    ctrl->settings->add("gui", &paramGUI, true);
     
+    // If we cannot load from a settigns file, save defaults to a new one instead
     if (!ctrl->settings->load(settingsFile)) {
         cout << "Couldn't find calibration file, writing defaults to " << settingsFile << endl;
         ctrl->settings->save(settingsFile);
     }
     
+    // Run
     bool result = run();
+    
+    // At the end, save any settings that were changed at runtime
     ctrl->settings->save(settingsFile);
     of.close();
     return result;
@@ -316,6 +293,14 @@ string paramDebug(int action, string val) {
     return "";
 }
 
+string paramGUI(int action, string val) {
+    if (action == PARAM_SET) {
+        _gui = atoi(val.c_str()) == 1;
+    } else {
+        return _gui ? "1" : "0";
+    }
+    return "";
+}
 
 string paramManualCaptureSettings(int action, string val) {
     if (action == PARAM_SET) {
@@ -419,6 +404,7 @@ string paramThreshold(int action, string val) {
     return "";
 }
 
+// Create a scaled image to send over as dbg        
 void reduceImage(Mat &src, Mat &dst, float scale) {
     if (src.empty()) return;
     Mat tmp;
@@ -426,4 +412,19 @@ void reduceImage(Mat &src, Mat &dst, float scale) {
     if (_flip)
         flip(tmp, tmp, 1);
     resize(tmp, dst, Size(), scale, scale, INTER_NEAREST);
+}
+
+// For logging
+void OutputHeader(ofstream & o) {
+    o << "t,frame,detected,x,y,z,t_grab,";
+    WriteCircleMarkerProfileHeader(o);
+    o << endl;
+}
+
+// For logging
+void OutputLine(ofstream & o) {
+    int o_t = (int)(GetTimeMs64() - time_start);
+    o << o_t << "," << o_frame << "," << o_detected << "," << o_x << "," << o_y << "," << o_z << "," << t_grab << ",";
+    WriteCircleMarkerProfileLine(o);
+    o << endl;
 }

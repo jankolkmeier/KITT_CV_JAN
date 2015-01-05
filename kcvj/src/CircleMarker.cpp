@@ -41,14 +41,6 @@ void CircleMarker::setWorldPose(Mat &t, Mat &R) {
     this->R_marker_world = R;
 }
 
-//void CircleMarker::estimateRigPose(Camera & camera) {
-//  //
-//}
-
-//void CircleMarker::estimateMarkerPose(vector<Point2d> & scene, Camera & camera) {
-
-//}
-
 void CircleMarker::estimateMarkerPose(vector<Point2d> & scene, Camera & camera) {
     // Marker pose in camera space
     solvePnP(model, scene, camera.cameraMatrix, camera.distCoeffs, r_marker, t_marker, false, CV_ITERATIVE);
@@ -98,7 +90,7 @@ void WriteCircleMarkerProfileLine(ofstream & o) {
     o << t_total << "," << t_prepare << "," << t_search << "," << t_approx << "," << t_refine << "," << t_estimate;
 }
 
-void CircleMarker::findAndEstimate(Mat &img, Mat &output, bool debug, Camera &camera, vector<CircleMarker> &markers, double scaleFactor, int tr) {
+void CircleMarker::findAndEstimate(Mat &img, Mat &output, bool gui, Camera &camera, vector<CircleMarker> &markers, double scaleFactor, int tr) {
     t_prepare = 0;
     t_search = 0;
     t_approx = 0;
@@ -122,7 +114,7 @@ void CircleMarker::findAndEstimate(Mat &img, Mat &output, bool debug, Camera &ca
 
     output = img;
     
-    if (debug) {
+    if (gui) {
         Mat bwc;
         cvtColor(bw, bwc, CV_GRAY2RGB);
         bwc.copyTo(output(Rect(0, 0, bwc.cols, bwc.rows)));
@@ -144,7 +136,7 @@ void CircleMarker::findAndEstimate(Mat &img, Mat &output, bool debug, Camera &ca
         int y2 = min(bw.size().height, circles[i].cy+range);
         Mat roi = bw(Range(y1, y2), Range(x1, x2));
         
-        if (debug) {
+        if (gui) {
             for (int r=0; r<circles[i].rows.size(); r++) {
                 line(img, Point(0, circles[i].rows[r]), Point(bw.cols, circles[i].rows[r]), Scalar(30,70,250), 1, 1);
             }
@@ -165,7 +157,7 @@ void CircleMarker::findAndEstimate(Mat &img, Mat &output, bool debug, Camera &ca
         
         if (approx.size() != 4) break;
         
-        if (debug) {
+        if (gui) {
             for (int c = 0; c < approx.size(); c++) {
                 circle(output, approx[c], 5, Scalar(250,220,40));
                 double x = approx[c].x/scaleFactor;
@@ -203,7 +195,7 @@ void CircleMarker::findAndEstimate(Mat &img, Mat &output, bool debug, Camera &ca
                         
                         marker->estimateMarkerPose(scene, camera);
                         t_estimate += (int)(GetTimeMs64() - t0);
-                        if (debug) drawMaker(*marker, camera, output, calibScaleX, calibScaleY);
+                        if (gui) drawMaker(*marker, camera, output, calibScaleX, calibScaleY);
                         break;
                     }
                 }
