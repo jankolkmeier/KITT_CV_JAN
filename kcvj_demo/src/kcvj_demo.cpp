@@ -88,6 +88,8 @@ int run() {
         }
 
         if (_gui || _debug) {
+			
+		#ifndef WIN32
             if (!ctrl->imageSet) {
                 reduceImage(output, reduced, _scale);
                 ctrl->setDebugImage(reduced);
@@ -97,6 +99,7 @@ int run() {
                 ctrl->image_requested = 2;
                 pthread_mutex_unlock(&(ctrl->mutex));
             }
+		#endif
             
             if (_gui) {
                 imshow("Output", output);

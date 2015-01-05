@@ -10,7 +10,7 @@ Mat input, output;
 int main(int argc, char* argv[]) {
     int camera_name = 0;
     string calibration = "logitech800x600.yml";
-	int gui = 0;
+	int gui = 1;
     int thresh = 75;
     double markerSize = 25.0;
     
