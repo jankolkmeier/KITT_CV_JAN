@@ -37,7 +37,12 @@ find_package(OpenCV REQUIRED)
 add_library(kcvj ${SRC_LIB} ${HEADERS_LIB})
 
 add_executable(kcvj_demo ${SRC_DEMO} ${HEADERS_DEMO})
-target_link_libraries(kcvj_demo ${OpenCV_LIBS} kcvj)
+if(WIN32)
+  target_link_libraries(kcvj_demo ${OpenCV_LIBS} kcvj)
+else()
+  find_package(Threads)
+  target_link_libraries(kcvj_demo ${CMAKE_THREAD_LIBS_INIT} ${OpenCV_LIBS} kcvj)
+endif()
 
 add_executable(kcvj_minimal ${SRC_MIN} ${HEADERS_MIN})
 target_link_libraries(kcvj_minimal ${OpenCV_LIBS} kcvj)
@@ -56,6 +61,8 @@ target_link_libraries(feature_test ${OpenCV_LIBS} kcvj)
 
 add_executable(hough_circle_test ${SRC_HOUGH} ${HEADERS_HOUGH})
 target_link_libraries(hough_circle_test ${OpenCV_LIBS} kcvj)
+
+#SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -lpthread")
 
 #SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -mfpu=neon")
 
