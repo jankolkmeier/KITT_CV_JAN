@@ -15,6 +15,7 @@ RemoteControl::RemoteControl(int port, string _settingsFile) {
 
     running = true;
 
+#ifndef WIN32
     slen = sizeof(si_other);
     if ((listenSock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
         die("socket", 1);
@@ -34,7 +35,9 @@ RemoteControl::RemoteControl(int port, string _settingsFile) {
     if (pthread_create(&thread, NULL, RemoteControl::listen, this)) {
         die("Failed to create thread.", 1);
     }
+#endif
 }
+
 
 void RemoteControl::setDebugImage(cv::Mat &img) {
     if (img.empty()) return;
@@ -49,6 +52,8 @@ void RemoteControl::setDebugImage(cv::Mat &img) {
 // Listens for commands in seperate threads and responds accordingly
 void * RemoteControl::listen(void * parent) {
     RemoteControl * self = ((RemoteControl *) parent);
+	
+#ifndef WIN32
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
     char pbuf[128];
@@ -138,6 +143,7 @@ void * RemoteControl::listen(void * parent) {
         }
         pthread_testcancel();
     }
+#endif
     return 0;
 }
 
@@ -148,11 +154,13 @@ void RemoteControl::die(std::string s, int retval) {
         std::cerr << s << std::endl;
     }
 
-
+	
+#ifndef WIN32
     if (listenSock) {
         close(listenSock);
     }
 
     pthread_mutex_destroy(&mutex);
     exit(retval);
+#endif
 }
