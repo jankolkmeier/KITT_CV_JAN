@@ -38,7 +38,7 @@ string _translation = "";
 string _prefix = "frame_";
 string _suffix = ".png";
 
-double _searchScale = 0.2;
+double _searchScale = 0.4;
 bool _flip = false;
 bool _debug = true;
 bool _gui = true;
