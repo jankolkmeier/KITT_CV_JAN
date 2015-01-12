@@ -250,7 +250,7 @@ int initNet() {
 #ifdef WIN32
 	si_other.sin_addr.S_un.S_addr = inet_addr(poseTargetIP);
 #else
-    si_other.sin_addr.s_addr = inet_addr(SERVER);
+    si_other.sin_addr.s_addr = inet_addr(poseTargetIP);
 #endif
     printf("Initialised.\n");
     return 1;
