@@ -38,6 +38,7 @@ int main(int argc, char* argv[]) {
     
     while (true) {
         cap >> input;
+
         int t_grab = (int) (GetTimeMs64() - t0);
 
         t0 = GetTimeMs64();
