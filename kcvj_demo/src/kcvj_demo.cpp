@@ -153,17 +153,17 @@ int main(int argc, char* argv[]) {
     } else if (argc == 3) {
        port = atoi(argv[1]);
        settingsFile = argv[2];
-    } else if (argc == 3) {
+    } else if (argc == 4) {
        port = atoi(argv[1]);
        settingsFile = argv[2];
 	   poseTargetPort = atoi(argv[3]);
-    } else if (argc == 3) {
+    } else if (argc == 5) {
        port = atoi(argv[1]);
        settingsFile = argv[2];
        poseTargetPort = atoi(argv[3]);
 	   poseTargetIP = argv[4];
     } else {
-       cout << "Usage: " << argv[0] << " [port] [settingsFile]" << endl;
+       cout << "Usage: " << argv[0] << " [controlPort] [settingsFile] [targetPort] [targetIP]" << endl;
        return -1;
     }
 
