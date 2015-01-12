@@ -8,10 +8,8 @@ file(GLOB HEADERS_DEMO ${PROJECT_SOURCE_DIR}/kcvj_demo/headers/*.h)
 file(GLOB SRC_MIN ${PROJECT_SOURCE_DIR}/kcvj_minimal/src/*.cpp)
 file(GLOB HEADERS_MIN ${PROJECT_SOURCE_DIR}/kcvj_minimal/headers/*.h)     
 
-if(WIN32)
-file(GLOB SRC_WIN ${PROJECT_SOURCE_DIR}/kcvj_win/src/*.cpp)
-file(GLOB HEADERS_WIN ${PROJECT_SOURCE_DIR}/kcvj_win/headers/*.h)     
-endif()
+file(GLOB SRC_STREAM ${PROJECT_SOURCE_DIR}/kcvj_stream/src/*.cpp)
+file(GLOB HEADERS_STREAM ${PROJECT_SOURCE_DIR}/kcvj_stream/headers/*.h)
 
 file(GLOB SRC_MC ${PROJECT_SOURCE_DIR}/kcvj_multicam/src/*.cpp)
 file(GLOB HEADERS_MC ${PROJECT_SOURCE_DIR}/kcvj_multicam/headers/*.h)     
@@ -41,29 +39,26 @@ include_directories(${PROJECT_SOURCE_DIR}/feature_test/headers)
 include_directories(${PROJECT_SOURCE_DIR}/hough_circle_test/headers)      
 
 if(WIN32)  
-include_directories(${PROJECT_SOURCE_DIR}/kcvj_win/headers) 
+include_directories(${PROJECT_SOURCE_DIR}/kcvj_stream/headers) 
 endif()
 
 find_package(OpenCV REQUIRED)
-
 add_library(kcvj ${SRC_LIB} ${HEADERS_LIB})
 
+add_executable(kcvj_stream ${SRC_STREAM} ${HEADERS_STREAM})
 add_executable(kcvj_demo ${SRC_DEMO} ${HEADERS_DEMO})
+
 if(WIN32)
-  target_link_libraries(kcvj_demo ${OpenCV_LIBS} kcvj)
+  target_link_libraries(kcvj_demo ${OpenCV_LIBS} kcvj ws2_32)
+  target_link_libraries(kcvj_stream ${OpenCV_LIBS} kcvj  ws2_32)
 else()
   find_package(Threads)
   target_link_libraries(kcvj_demo ${CMAKE_THREAD_LIBS_INIT} ${OpenCV_LIBS} kcvj)
+  target_link_libraries(kcvj_stream ${OpenCV_LIBS} kcvj)
 endif()
 
 add_executable(kcvj_minimal ${SRC_MIN} ${HEADERS_MIN})
 target_link_libraries(kcvj_minimal ${OpenCV_LIBS} kcvj)
-
-if(WIN32)  
-add_executable(kcvj_win ${SRC_WIN} ${HEADERS_WIN})
-target_link_libraries(kcvj_win ${OpenCV_LIBS} kcvj  ws2_32)
-endif()
-
 
 add_executable(kcvj_multicam ${SRC_MC} ${HEADERS_MC})
 target_link_libraries(kcvj_multicam ${OpenCV_LIBS} kcvj)
