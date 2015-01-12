@@ -2,6 +2,7 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#define SOCKET_ERROR -1
 #else
 #include <winsock2.h>
 #include <Windows.h>
@@ -18,13 +19,13 @@ using namespace std;
 
 #define BUFLEN 1024
 struct sockaddr_in si_other;
-struct sockaddr_in si_me;
 int s, slen=sizeof(si_other);
 char buf[BUFLEN];
 char message[BUFLEN];
 int initNet();
 void send(string msg);
 
+// Use "192.168.56.1" to connect to host
 #define SERVER "127.0.0.1"
 #define PORT 9989
 #define CAMERA 0
@@ -63,8 +64,8 @@ int main(int argc, char* argv[]) {
         CircleMarker::findAndEstimate(input, output, GUI>0, camera, markers, SEARCH_SCALE, THRESH);
 
         if (marker0->detected) {
-            cout << marker0->serialize() << endl;
 			string res = marker0->serialize();
+            cout << res << endl;
 			send(res);
             marker0->detected = false;
         }
@@ -86,29 +87,48 @@ int main(int argc, char* argv[]) {
 }
 
 int initNet() {
-    printf("\nInitialising Winsock...\n");
+    printf("\nInitialising Sock...\n");
+#ifdef WIN32
     if (WSAStartup(MAKEWORD(2,2),&wsa) != NO_ERROR) {
-        printf("Failed. Error Code : %d\n",WSAGetLastError());
+        printf("WinSock Startup failed. Error Code: %d\n",WSAGetLastError());
 		return -1;
     }
+#else
+    int errno;
+#endif
 
     if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == SOCKET_ERROR) {
-        printf("socket() failed with error code : %d\n" , WSAGetLastError());
+#ifdef WIN32
+        printf("socket() failed with error code: %d\n" , WSAGetLastError());
+#else
+        cout << "socket() failed with error code: " << errno << endl;
+#endif
 		return -1;
     }
 
     memset((char *) &si_other, 0, sizeof(si_other));
     si_other.sin_family = AF_INET;
     si_other.sin_port = htons(PORT);
+#ifdef WIN32
     si_other.sin_addr.S_un.S_addr = inet_addr(SERVER);
+#else
+    si_other.sin_addr.s_addr = inet_addr(SERVER);
+#endif
     printf("Initialised.\n");
 	return 1;
 }
 
 void send(string msg) {
+#ifndef WIN32
+    int errno;
+#endif
 	msg.copy(message, msg.length());
 	if (sendto(s, message, strlen(message) , 0 , (struct sockaddr *) &si_other, slen) == SOCKET_ERROR) {
-		printf("sendto() failed with error code : %d" , WSAGetLastError());
+#ifdef WIN32
+        printf("sendto() failed with error code : %d" , WSAGetLastError());
+#else
+        cout << "send() failed with error code: " << errno << endl;
+#endif
 	}
 	memset(buf,'\0', BUFLEN);
 }
