@@ -22,6 +22,13 @@ knows of OpenCV. To test this, check if:
 
 returns the path of where OpenCV headers have been installed.
 
+For one of the example applications, we use nonfree parts of OpenCV, which are not shipped with all OpenCV distributions.
+On Ubuntu, these can be added with the following commands:
+  `sudo add-apt-repository --yes ppa:xqms/opencv-nonfree`
+  `sudo apt-get update` 
+  `sudo apt-get install libopencv-nonfree-dev`
+
+
 ### Generate Project Files
 
 I created [CMake](http://cmake.org) configuration files for the build. To create project files
@@ -118,12 +125,11 @@ TODO: capture_camera
 This contains a web-based control and debugging application that runs together with the kcvj_demo application.
 It needs nodejs installed to run. It does not ship with third-party plugins, so running
 
-`npm install`
+`npm install png engine.io node-static`
 
 First is required to load the plugins.
 Then, run it with
-
-`node RemoteControlWebClient.js`
+`nodejs RemoteControlWebClient.js`
 
 It can be run either on the same computer as kcvj_demo runs, or on a remote computer.
 This requires to uncomment and change the last lines of "RemoteControlWebClient.js" to use ip and port 

@@ -47,8 +47,9 @@
 <p>This documents describes installation and setup, contained resources as well as smaller examples, and other extra - non-kcvj - applications.</p>
 <h2>Setup</h2>
 <h3>Dependencies</h3>
-<p>The only required 3rd party library is OpenCV. Any version in 2.4.x should work, it was last tested with 2.4.9. Guides on compiling OpenCV yourself can be found over the internet, but using the precompiled binaries for the respective platform works fine. I used the <a href="https://www.macports.org/ports.php?by=library&amp;substr=opencv">OpenCV Macports packgage</a> on OS X. For GNU/Linux distributions, just install the version from the official repositiories. In any case, it is importand that after installation, <a href="http://en.wikipedia.org/wiki/Pkg-config">pkg-config</a> knows of OpenCV. To test this, check if: <code>pkg-config --cflags opencv</code></p>
+<p>The only required 3rd party library is OpenCV. Any version in 2.4.x should work, it was last tested with 2.4.9. Guides on compiling OpenCV yourself can be found over the internet, but using the precompiled binaries for the respective platform works fine. I used the <a href="https://www.macports.org/ports.php?by=library&amp;substr=opencv">OpenCV Macports packgage</a> on OS X. For GNU/Linux distributions, just install the version from the official repositiories (ex. libopencv-dev, for ubuntu). In any case, it is importand that after installation, <a href="http://en.wikipedia.org/wiki/Pkg-config">pkg-config</a> knows of OpenCV. To test this, check if: <code>pkg-config --cflags opencv</code></p>
 <p>returns the path of where OpenCV headers have been installed.</p>
+<p>For one of the example applications, we use nonfree parts of OpenCV, which are not shipped with all OpenCV distributions. On Ubuntu, these can be added with the following commands: <code>sudo add-apt-repository --yes ppa:xqms/opencv-nonfree</code> <code>sudo apt-get update</code> <code>sudo apt-get install libopencv-nonfree-dev</code></p>
 <h3>Generate Project Files</h3>
 <p>I created <a href="http://cmake.org">CMake</a> configuration files for the build. To create project files for XCode, Visual Studio, or the makefile for gcc, first create a <em>build</em> directory inside the <em>KITT_CV_JAN</em> directory, then follow the respective instrucitons.</p>
 <h5>1 Linux / makefile</h5>
@@ -58,9 +59,16 @@
 <p>Run cmake in the build directory: <code>cd ./build</code> <code>cmake .. -G Xcode</code></p>
 <p>Open the Xcode project file inside the build directory and you should be able to build it right away.</p>
 <h5>3 Windows / Visual Studio</h5>
-<p>Run cmake in the build directory: <code>cd ./build</code> <code>cmake .. -G "Visual Studio 10 Win64"</code></p>
-<p>Open the VS project file inside the build directory and you should be able to build it right away.</p>
+<p>Run cmake in the build directory with the respective VS version (here for VS (Express) 2012): <code>cd ./build</code> <code>cmake .. -G "Visual Studio 11 Win64" -DCMAKE_PREFIX_PATH=C:\opencv\build</code></p>
+<p>If it is a 32bit system, leave out the <code>Win64</code> part. Change the additional prefix paramenter to the location of your OpenCV installation (the one with "OpenCVConfig.cmake" inside).</p>
+<p>Open the VS solution file (<code>KITT_CV_JAN.sln</code>) inside the build directory. You should be able to build it right away.</p>
+<h3>First Run</h3>
+<p>It is recommended to first run the "minimal example" (kcvj_minimal).</p>
+<p>Note that each IDE (XCode, VS) has different ways of where to compile the binaries to and in what directory to run them. If you use make on Linux, all binaries will be put inside the ./build directory. If you use Visual Studio, binaries are placed in a "Debug" or "Release" foldner, however, the running directory when debugging from VS is the "build" directory. XCode also has a Debug directory for the binaries, and uses that directory as running directory when debugging.</p>
+<p>This is important to know when trying to load files such as XML's for camera calibration.</p>
+<p>For the minimal example, compile it, and put the "logitech800x600.yml" file inside the respective running directory. Note that it is recommended to make your own camera calibration file suited for the camera you are using. Instructions for performing camera calibration can be found further below.</p>
 <h2>Examples</h2>
+<p>In the following we describe the various examples included in the project.</p>
 <h3>Demo (./kcvj_demo)</h3>
 <p>The demo applications is the most extensive application in the project. It adds extra functionality around the KCVJ library:</p>
 <ul>
@@ -69,27 +77,44 @@
 <li>Inspect image sequences on a frame-by-frame bases</li>
 <li>Log results</li>
 </ul>
+<p>The remote function starts a seperate thread and listens on a socket. This uses unix threads and socket implementations, and therefore is not working under windows!</p>
 <h3>Minimal Example (./kcvj_minimal)</h3>
-<p>The minimal example contains the bare minimum needed to test the kcvj library.</p>
+<p>The minimal example contains the bare minimum needed to test the kcvj library. No command line parameters - check the source code to adjust basic settings (calibration file, marker size, threshold, using gui, etc...).</p>
 <h3>Multiple Cameras (./kcvj_multicam)</h3>
-<p>An example with several cameras at the same time - each computing their own position (not a common rig position).</p>
+<p>An example with several cameras at the same time - each computing their own position (not a common rig position) - check the source code to adjust basic settings (calibration file, marker size, threshold, using gui, etc...) as well as the number of cameras.</p>
 <h2>Resources</h2>
 <h3>Calibration files (./resources/calibration)</h3>
+<p>This folder contains some calibration files for webcams used during development. The file "macbook.yml" is for the integrated webcam found in newer macbooks at native resolution. The file "macbook640x480.yml" is for the same webcam but at reduced capture resolution. Similarly for "logitech.yml" and "logitech800x600.yml", but for the Logitech QuickCam Pro 90000. "edge.yml" is for the default 0.3mp cam on thinkpad edge series notebooks. "unity.xml" is the calibration for a virtual camera used for simulations rendered in the 3D Unity game engine.</p>
 <h3>Configuration files (./resources/configurations)</h3>
+<p>Some sample configuration files. These should be inspected befor using them to use the desired paths and camera calibration files.</p>
+<p>TODO: image_sequence (test) TODO: capture_camera</p>
 <h3>Web Remote Control (./resources/remoteControl)</h3>
+<p>This contains a web-based control and debugging application that runs together with the kcvj_demo application. It needs nodejs installed to run. It does not ship with third-party plugins, so running</p>
+<p><code>npm install png engine.io node-static</code></p>
+<p>First is required to load the plugins. Then, run it with <code>nodejs RemoteControlWebClient.js</code></p>
+<p>It can be run either on the same computer as kcvj_demo runs, or on a remote computer. This requires to uncomment and change the last lines of "RemoteControlWebClient.js" to use ip and port of the computer that runs kcvj_demo. The web interface is hosted on port :8080.</p>
 <h3>Tests (./resources/tests)</h3>
+<p>The tests folder contains some image files used by example applications for testing purposes. Most importantly, the files in ./resources/tests/optitrack, which also come with a CSV file containing ground truths for each frame (the CSV is in "./resources/stats/optitrack_truth.csv").</p>
 <h3>Statistics (./resources/stats)</h3>
+<p>This folder contains some matlab ".m" scripts and recorded ".csv" logs that were used for evaluation of the system.</p>
 <h2>Extra Applications</h2>
 <h3><a class="el" href="class_camera.html">Camera</a> Calibration (./calibration)</h3>
+<p>The camera calibration application is part of the main project and compiled with all other targets. Running it without parameters gives some thorough help. Here are some examples as for how I have used it:</p>
+<p><code>./calibration -w 8 -h 5 -g -pt chessboard -cw 800 -ch 600 -s 0.4 -d 1500 -o philips800x600.yml -n 20 0</code></p>
+<p>We use a chessboard pattern with 8x5 corners. The "-g" flag enables gui output (not to be used on "headless" computers). The "-cw" and "-ch" parameters define the desired maximum capture height and width (opencv will pick that one or the next smaller one supported by the webcam). The "-s" defines a size unit for the squares (in this case 4cm). "-d" indicates the minimal delay between frames</p><ul>
+<li>this gives some time to alternate the orientation of the cessboard. The output file ("-o") is phillips800x600.yml. We take "-n" = 20 sample pictures of the chessboard in view to base our calibration on. The last parameter is "0", which refers to the camera capture device id.</li>
+</ul>
+<p>If calibration is too heavy on the desired device, and the camera cannot be attached to a regular PC, pass the "-so" parameter, which only saves images with the desired interval ("-d"). These can then be loaded on another computer and be used for calibration. Read the instructions on how to load image lists in the help output.</p>
 <h3>Hough Circle Test (./hough_circle_test)</h3>
-<h3>Aruco Test (./aruco_test)</h3>
+<p>A sample to test execution performance of the hough circle detection. Otherwise not functional.</p>
+<h3>ArUco Test (./aruco_test)</h3>
+<p>A sample to test execution performance of the ArUco library. Otherwise not functional.</p>
 <h3>Feature Test (./feature_test)</h3>
-<p><a class="el" href="class_circle_marker.html#aea9eaf203024c73ef78d8e73908421ba">CircleMarker::estimateMarkerPose</a></p>
-<p>test </p>
+<p>A sample to test execution performance of different feature based detection and matching approaches. Otherwise not functional. </p>
 </div></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Sat Jan 3 2015 18:26:24 for KJCV by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Sun Jan 25 2015 16:18:19 for KJCV by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.7
 </small></address>
