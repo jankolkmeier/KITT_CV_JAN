@@ -7,6 +7,10 @@ file(GLOB SRC_DEMO ${PROJECT_SOURCE_DIR}/kcvj_demo/src/*.cpp)
 file(GLOB HEADERS_DEMO ${PROJECT_SOURCE_DIR}/kcvj_demo/headers/*.h)     
 file(GLOB SRC_MIN ${PROJECT_SOURCE_DIR}/kcvj_minimal/src/*.cpp)
 file(GLOB HEADERS_MIN ${PROJECT_SOURCE_DIR}/kcvj_minimal/headers/*.h)     
+
+file(GLOB SRC_STREAM ${PROJECT_SOURCE_DIR}/kcvj_stream/src/*.cpp)
+file(GLOB HEADERS_STREAM ${PROJECT_SOURCE_DIR}/kcvj_stream/headers/*.h)
+
 file(GLOB SRC_MC ${PROJECT_SOURCE_DIR}/kcvj_multicam/src/*.cpp)
 file(GLOB HEADERS_MC ${PROJECT_SOURCE_DIR}/kcvj_multicam/headers/*.h)     
 
@@ -22,6 +26,8 @@ file(GLOB HEADERS_FEATURE ${PROJECT_SOURCE_DIR}/feature_test/headers/*.h)
 file(GLOB SRC_HOUGH ${PROJECT_SOURCE_DIR}/hough_circle_test/src/*.cpp)
 file(GLOB HEADERS_HOUGH ${PROJECT_SOURCE_DIR}/hough_circle_test/headers/*.h)     
 
+
+
 include_directories(${PROJECT_SOURCE_DIR}/kcvj/headers)      
 include_directories(${PROJECT_SOURCE_DIR}/kcvj_demo/headers)      
 include_directories(${PROJECT_SOURCE_DIR}/kcvj_minimal/headers)      
@@ -32,16 +38,23 @@ include_directories(${PROJECT_SOURCE_DIR}/aruco_test/headers)
 include_directories(${PROJECT_SOURCE_DIR}/feature_test/headers)      
 include_directories(${PROJECT_SOURCE_DIR}/hough_circle_test/headers)      
 
-find_package(OpenCV REQUIRED)
+if(WIN32)  
+include_directories(${PROJECT_SOURCE_DIR}/kcvj_stream/headers) 
+endif()
 
+find_package(OpenCV REQUIRED)
 add_library(kcvj ${SRC_LIB} ${HEADERS_LIB})
 
+add_executable(kcvj_stream ${SRC_STREAM} ${HEADERS_STREAM})
 add_executable(kcvj_demo ${SRC_DEMO} ${HEADERS_DEMO})
+
 if(WIN32)
-  target_link_libraries(kcvj_demo ${OpenCV_LIBS} kcvj)
+  target_link_libraries(kcvj_demo ${OpenCV_LIBS} kcvj ws2_32)
+  target_link_libraries(kcvj_stream ${OpenCV_LIBS} kcvj  ws2_32)
 else()
   find_package(Threads)
   target_link_libraries(kcvj_demo ${CMAKE_THREAD_LIBS_INIT} ${OpenCV_LIBS} kcvj)
+  target_link_libraries(kcvj_stream ${OpenCV_LIBS} kcvj)
 endif()
 
 add_executable(kcvj_minimal ${SRC_MIN} ${HEADERS_MIN})

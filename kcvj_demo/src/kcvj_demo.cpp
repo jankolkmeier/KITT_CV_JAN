@@ -79,9 +79,10 @@ int run() {
         
         for (int m = 0; m < markers.size(); m++) {
             if (markers.at(m).detected) {
-                cout << markers.at(m).serialize() << endl;
-                markers.at(m).detected = false;
                 _translation = markers.at(m).serialize();
+				cout << _translation << endl;
+				send(_translation);
+                markers.at(m).detected = false;
             } else {
                 //cout << " - "  << endl;
             }
@@ -152,11 +153,24 @@ int main(int argc, char* argv[]) {
     } else if (argc == 3) {
        port = atoi(argv[1]);
        settingsFile = argv[2];
+    } else if (argc == 4) {
+       port = atoi(argv[1]);
+       settingsFile = argv[2];
+	   poseTargetPort = atoi(argv[3]);
+    } else if (argc == 5) {
+       port = atoi(argv[1]);
+       settingsFile = argv[2];
+       poseTargetPort = atoi(argv[3]);
+	   poseTargetIP = argv[4];
     } else {
-       cout << "Usage: " << argv[0] << " [port] [settingsFile]" << endl;
+       cout << "Usage: " << argv[0] << " [controlPort] [settingsFile] [targetPort] [targetIP]" << endl;
        return -1;
     }
-    
+
+	if (initNet() < 0) {
+		cout << "Failed to init pose streaming" << endl;
+		return -1;
+	}
     
     // Init remote control...
     ctrl = new RemoteControl(port, settingsFile);
@@ -199,9 +213,63 @@ int main(int argc, char* argv[]) {
     // At the end, save any settings that were changed at runtime
     ctrl->settings->save(settingsFile);
     of.close();
+
+#ifdef WIN32
+    closesocket(s);
+    WSACleanup();
+#else
+	close(s);
+#endif
+
     return result;
 }
 
+int initNet() {
+    printf("\nInitialising Sock...\n");
+#ifdef WIN32
+    if (WSAStartup(MAKEWORD(2,2),&wsa) != NO_ERROR) {
+        printf("WinSock Startup failed. Error Code: %d\n",WSAGetLastError());
+        return -1;
+    }
+#else
+    int errno;
+#endif
+
+    if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == SOCKET_ERROR) {
+#ifdef WIN32
+        printf("socket() failed with error code: %d\n" , WSAGetLastError());
+#else
+        cout << "socket() failed with error code: " << errno << endl;
+#endif
+        return -1;
+    }
+
+    memset((char *) &si_other, 0, sizeof(si_other));
+    si_other.sin_family = AF_INET;
+	si_other.sin_port = htons(poseTargetPort);
+#ifdef WIN32
+	si_other.sin_addr.S_un.S_addr = inet_addr(poseTargetIP);
+#else
+    si_other.sin_addr.s_addr = inet_addr(poseTargetIP);
+#endif
+    printf("Initialised.\n");
+    return 1;
+}
+
+void send(string msg) {
+#ifndef WIN32
+    int errno;
+#endif
+    msg.copy(message, msg.length());
+    if (sendto(s, message, strlen(message) , 0 , (struct sockaddr *) &si_other, slen) == SOCKET_ERROR) {
+#ifdef WIN32
+        printf("sendto() failed with error code : %d" , WSAGetLastError());
+#else
+        cout << "send() failed with error code: " << errno << endl;
+#endif
+    }
+    memset(buf,'\0', BUFLEN);
+}
 
 ////// //// /// / / ////////// / // //// // // ///
 // Getter/Setter for setting/remote control     //

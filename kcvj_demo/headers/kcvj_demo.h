@@ -1,3 +1,15 @@
+#ifndef WIN32
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#define SOCKET_ERROR -1
+#else
+#include <winsock2.h>
+#include <Windows.h>
+#pragma comment(lib,"ws2_32.lib")
+WSADATA wsa;
+#endif
+
 #include <string>
 #include <sstream>
 #include <iostream>
@@ -12,10 +24,22 @@
 using namespace cv;
 using namespace std;
 
+#define BUFLEN 1024
+struct sockaddr_in si_other;
+int s, slen=sizeof(si_other);
+char buf[BUFLEN];
+char message[BUFLEN];
+int initNet();
+void send(string msg);
+
 // Remote control
 RemoteControl * ctrl;
 int port = 9988;
 const char * settingsFile = "default.yml";
+
+
+int poseTargetPort = 9989;
+const char * poseTargetIP = "127.0.0.1";
 
 // Settings Defaults
 string _sourceType = "capture_camera"; // capture_camera | capture_video | image | image_sequence
@@ -38,7 +62,7 @@ string _translation = "";
 string _prefix = "frame_";
 string _suffix = ".png";
 
-double _searchScale = 0.2;
+double _searchScale = 0.4;
 bool _flip = false;
 bool _debug = true;
 bool _gui = true;
